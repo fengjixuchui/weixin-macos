@@ -37,6 +37,7 @@ func sendHandler(w http.ResponseWriter, r *http.Request) {
 
 	sendContent := ""
 	atUserID := ""
+	var resultChans []chan error
 	for _, v := range req.Message {
 		if v.Type == "text" {
 			sendContent += v.Data.Text
@@ -49,18 +50,27 @@ func sendHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 		} else if v.Type == "image" || v.Type == "video" {
-			msgChan <- &SendMsg{
-				UserId:  req.UserID,
-				GroupID: req.GroupID,
-				Content: v.Data.File,
-				Type:    v.Type,
+			ch := make(chan error, 1)
+			msg := &SendMsg{
+				UserId:     req.UserID,
+				GroupID:    req.GroupID,
+				Content:    v.Data.File,
+				Type:       v.Type,
+				ResultChan: ch,
 			}
+			msgChan <- msg
+			resultChans = append(resultChans, ch)
 		} else if v.Type == "reply" {
 			if v.Data.ReplyMessage == nil {
 				Error("reply_message为空")
 				continue
 			}
 			rm := v.Data.ReplyMessage
+
+			// 顶层没有group_id时，从reply_message中取
+			if req.GroupID == "" && rm.GroupId != "" {
+				req.GroupID = rm.GroupId
+			}
 
 			// 提取被回复消息的内容
 			referContent := ""
@@ -88,6 +98,7 @@ func sendHandler(w http.ResponseWriter, r *http.Request) {
 			// msgsource需要JSON unescape（双重编码: \\u003c → \u003c → <）
 			msgsource := jsonUnescapeString(rm.MsgResource)
 
+			ch := make(chan error, 1)
 			msgChan <- &SendMsg{
 				UserId:           req.UserID,
 				GroupID:          req.GroupID,
@@ -100,17 +111,35 @@ func sendHandler(w http.ResponseWriter, r *http.Request) {
 				ReferMsgsource:   msgsource,
 				ReferDisplayName: displayName,
 				ReferContent:     referContent,
+				ResultChan:       ch,
 			}
+			resultChans = append(resultChans, ch)
 		}
 	}
 
 	if sendContent != "" {
+		ch := make(chan error, 1)
 		msgChan <- &SendMsg{
-			UserId:  req.UserID,
-			GroupID: req.GroupID,
-			Content: sendContent,
-			Type:    "text",
-			AtUser:  strings.TrimRight(atUserID, ","),
+			UserId:     req.UserID,
+			GroupID:    req.GroupID,
+			Content:    sendContent,
+			Type:       "text",
+			AtUser:     strings.TrimRight(atUserID, ","),
+			ResultChan: ch,
+		}
+		resultChans = append(resultChans, ch)
+	}
+
+	// 等待所有消息发送完成
+	for _, ch := range resultChans {
+		if err := <-ch; err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]any{
+				"status": "failed",
+				"error":  err.Error(),
+			})
+			return
 		}
 	}
 
@@ -182,3 +211,4 @@ func jsonUnescapeString(s string) string {
 	}
 	return result
 }
+

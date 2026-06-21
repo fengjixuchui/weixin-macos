@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v3.5.1
-// source: proto/wxproto/reply_msg.proto
+// source: app_msg.proto
 
 package wxproto
 
@@ -28,13 +28,17 @@ type WxSendReplyMsg struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Header        *ReplyMsgHeader        `protobuf:"bytes,1,opt,name=header" json:"header,omitempty"`
 	Body          *ReplyMsgBody          `protobuf:"bytes,2,opt,name=body" json:"body,omitempty"`
+	Unknown5      []byte                 `protobuf:"bytes,5,opt,name=unknown5" json:"unknown5,omitempty"`     // md5
+	Unknown9      *int32                 `protobuf:"varint,9,opt,name=unknown9" json:"unknown9,omitempty"`    // 1
+	Unknown10     *uint64                `protobuf:"varint,10,opt,name=unknown10" json:"unknown10,omitempty"` // msgSvrId
+	Unknown11     *int32                 `protobuf:"varint,11,opt,name=unknown11" json:"unknown11,omitempty"` // 2
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *WxSendReplyMsg) Reset() {
 	*x = WxSendReplyMsg{}
-	mi := &file_proto_wxproto_reply_msg_proto_msgTypes[0]
+	mi := &file_app_msg_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -46,7 +50,7 @@ func (x *WxSendReplyMsg) String() string {
 func (*WxSendReplyMsg) ProtoMessage() {}
 
 func (x *WxSendReplyMsg) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_wxproto_reply_msg_proto_msgTypes[0]
+	mi := &file_app_msg_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -59,7 +63,7 @@ func (x *WxSendReplyMsg) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WxSendReplyMsg.ProtoReflect.Descriptor instead.
 func (*WxSendReplyMsg) Descriptor() ([]byte, []int) {
-	return file_proto_wxproto_reply_msg_proto_rawDescGZIP(), []int{0}
+	return file_app_msg_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *WxSendReplyMsg) GetHeader() *ReplyMsgHeader {
@@ -76,22 +80,50 @@ func (x *WxSendReplyMsg) GetBody() *ReplyMsgBody {
 	return nil
 }
 
-// Header: 固定64字节
+func (x *WxSendReplyMsg) GetUnknown5() []byte {
+	if x != nil {
+		return x.Unknown5
+	}
+	return nil
+}
+
+func (x *WxSendReplyMsg) GetUnknown9() int32 {
+	if x != nil && x.Unknown9 != nil {
+		return *x.Unknown9
+	}
+	return 0
+}
+
+func (x *WxSendReplyMsg) GetUnknown10() uint64 {
+	if x != nil && x.Unknown10 != nil {
+		return *x.Unknown10
+	}
+	return 0
+}
+
+func (x *WxSendReplyMsg) GetUnknown11() int32 {
+	if x != nil && x.Unknown11 != nil {
+		return *x.Unknown11
+	}
+	return 0
+}
+
+// Header: 请求头，所有消息共用
 type ReplyMsgHeader struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Flag          []byte                 `protobuf:"bytes,1,opt,name=flag" json:"flag,omitempty"`                                  // 固定 [0x00]
-	Timestamp     *uint32                `protobuf:"varint,2,opt,name=timestamp" json:"timestamp,omitempty"`                       // 请求时间戳(秒)
-	ClientProof   []byte                 `protobuf:"bytes,3,opt,name=client_proof,json=clientProof" json:"client_proof,omitempty"` // 16字节随机数据/md5
-	DeviceId      *uint64                `protobuf:"varint,4,opt,name=device_id,json=deviceId" json:"device_id,omitempty"`         // 设备标识(大整数)
+	SessionId     *uint32                `protobuf:"varint,2,opt,name=session_id,json=sessionId" json:"session_id,omitempty"`      // 会话ID (启动时生成，全局复用)
+	ClientProof   []byte                 `protobuf:"bytes,3,opt,name=client_proof,json=clientProof" json:"client_proof,omitempty"` // 16字节设备标识字符串 (如"m64a7624402b3883")
+	DeviceId      *uint64                `protobuf:"varint,4,opt,name=device_id,json=deviceId" json:"device_id,omitempty"`         // 设备ID (大整数，启动时生成，全局复用)
 	Platform      *string                `protobuf:"bytes,5,opt,name=platform" json:"platform,omitempty"`                          // 平台信息 "UnifiedPCMac 26 arm64"
-	Version       *uint32                `protobuf:"varint,6,opt,name=version" json:"version,omitempty"`                           // 版本/标记 = 163
+	Version       *uint32                `protobuf:"varint,6,opt,name=version" json:"version,omitempty"`                           // 版本标记
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ReplyMsgHeader) Reset() {
 	*x = ReplyMsgHeader{}
-	mi := &file_proto_wxproto_reply_msg_proto_msgTypes[1]
+	mi := &file_app_msg_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -103,7 +135,7 @@ func (x *ReplyMsgHeader) String() string {
 func (*ReplyMsgHeader) ProtoMessage() {}
 
 func (x *ReplyMsgHeader) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_wxproto_reply_msg_proto_msgTypes[1]
+	mi := &file_app_msg_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -116,7 +148,7 @@ func (x *ReplyMsgHeader) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplyMsgHeader.ProtoReflect.Descriptor instead.
 func (*ReplyMsgHeader) Descriptor() ([]byte, []int) {
-	return file_proto_wxproto_reply_msg_proto_rawDescGZIP(), []int{1}
+	return file_app_msg_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *ReplyMsgHeader) GetFlag() []byte {
@@ -126,9 +158,9 @@ func (x *ReplyMsgHeader) GetFlag() []byte {
 	return nil
 }
 
-func (x *ReplyMsgHeader) GetTimestamp() uint32 {
-	if x != nil && x.Timestamp != nil {
-		return *x.Timestamp
+func (x *ReplyMsgHeader) GetSessionId() uint32 {
+	if x != nil && x.SessionId != nil {
+		return *x.SessionId
 	}
 	return 0
 }
@@ -185,7 +217,7 @@ type ReplyMsgBody struct {
 
 func (x *ReplyMsgBody) Reset() {
 	*x = ReplyMsgBody{}
-	mi := &file_proto_wxproto_reply_msg_proto_msgTypes[2]
+	mi := &file_app_msg_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -197,7 +229,7 @@ func (x *ReplyMsgBody) String() string {
 func (*ReplyMsgBody) ProtoMessage() {}
 
 func (x *ReplyMsgBody) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_wxproto_reply_msg_proto_msgTypes[2]
+	mi := &file_app_msg_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -210,7 +242,7 @@ func (x *ReplyMsgBody) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplyMsgBody.ProtoReflect.Descriptor instead.
 func (*ReplyMsgBody) Descriptor() ([]byte, []int) {
-	return file_proto_wxproto_reply_msg_proto_rawDescGZIP(), []int{2}
+	return file_app_msg_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ReplyMsgBody) GetSender() string {
@@ -318,17 +350,23 @@ func (x *ReplyMsgBody) GetUnknown15() []byte {
 	return nil
 }
 
-var File_proto_wxproto_reply_msg_proto protoreflect.FileDescriptor
+var File_app_msg_proto protoreflect.FileDescriptor
 
-const file_proto_wxproto_reply_msg_proto_rawDesc = "" +
+const file_app_msg_proto_rawDesc = "" +
 	"\n" +
-	"\x1dproto/wxproto/reply_msg.proto\x12\awxproto\"l\n" +
+	"\rapp_msg.proto\x12\awxproto\"\xe0\x01\n" +
 	"\x0eWxSendReplyMsg\x12/\n" +
 	"\x06header\x18\x01 \x01(\v2\x17.wxproto.ReplyMsgHeaderR\x06header\x12)\n" +
-	"\x04body\x18\x02 \x01(\v2\x15.wxproto.ReplyMsgBodyR\x04body\"\xb8\x01\n" +
+	"\x04body\x18\x02 \x01(\v2\x15.wxproto.ReplyMsgBodyR\x04body\x12\x1a\n" +
+	"\bunknown5\x18\x05 \x01(\fR\bunknown5\x12\x1a\n" +
+	"\bunknown9\x18\t \x01(\x05R\bunknown9\x12\x1c\n" +
+	"\tunknown10\x18\n" +
+	" \x01(\x04R\tunknown10\x12\x1c\n" +
+	"\tunknown11\x18\v \x01(\x05R\tunknown11\"\xb9\x01\n" +
 	"\x0eReplyMsgHeader\x12\x12\n" +
-	"\x04flag\x18\x01 \x01(\fR\x04flag\x12\x1c\n" +
-	"\ttimestamp\x18\x02 \x01(\rR\ttimestamp\x12!\n" +
+	"\x04flag\x18\x01 \x01(\fR\x04flag\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x02 \x01(\rR\tsessionId\x12!\n" +
 	"\fclient_proof\x18\x03 \x01(\fR\vclientProof\x12\x1b\n" +
 	"\tdevice_id\x18\x04 \x01(\x04R\bdeviceId\x12\x1a\n" +
 	"\bplatform\x18\x05 \x01(\tR\bplatform\x12\x18\n" +
@@ -349,27 +387,27 @@ const file_proto_wxproto_reply_msg_proto_rawDesc = "" +
 	"\tmsgsource\x18\f \x01(\fR\tmsgsource\x12\x1c\n" +
 	"\tunknown13\x18\r \x01(\fR\tunknown13\x12\x1c\n" +
 	"\tunknown14\x18\x0e \x01(\fR\tunknown14\x12\x1c\n" +
-	"\tunknown15\x18\x0f \x01(\fR\tunknown15B>Z<github.com/yincongcyincong/weixin-macos/onebot/proto/wxproto"
+	"\tunknown15\x18\x0f \x01(\fR\tunknown15B>Z<github.com/yincongcyincong/weixin-macos/onebot/proto;wxproto"
 
 var (
-	file_proto_wxproto_reply_msg_proto_rawDescOnce sync.Once
-	file_proto_wxproto_reply_msg_proto_rawDescData []byte
+	file_app_msg_proto_rawDescOnce sync.Once
+	file_app_msg_proto_rawDescData []byte
 )
 
-func file_proto_wxproto_reply_msg_proto_rawDescGZIP() []byte {
-	file_proto_wxproto_reply_msg_proto_rawDescOnce.Do(func() {
-		file_proto_wxproto_reply_msg_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_proto_wxproto_reply_msg_proto_rawDesc), len(file_proto_wxproto_reply_msg_proto_rawDesc)))
+func file_app_msg_proto_rawDescGZIP() []byte {
+	file_app_msg_proto_rawDescOnce.Do(func() {
+		file_app_msg_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_app_msg_proto_rawDesc), len(file_app_msg_proto_rawDesc)))
 	})
-	return file_proto_wxproto_reply_msg_proto_rawDescData
+	return file_app_msg_proto_rawDescData
 }
 
-var file_proto_wxproto_reply_msg_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
-var file_proto_wxproto_reply_msg_proto_goTypes = []any{
+var file_app_msg_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_app_msg_proto_goTypes = []any{
 	(*WxSendReplyMsg)(nil), // 0: wxproto.WxSendReplyMsg
 	(*ReplyMsgHeader)(nil), // 1: wxproto.ReplyMsgHeader
 	(*ReplyMsgBody)(nil),   // 2: wxproto.ReplyMsgBody
 }
-var file_proto_wxproto_reply_msg_proto_depIdxs = []int32{
+var file_app_msg_proto_depIdxs = []int32{
 	1, // 0: wxproto.WxSendReplyMsg.header:type_name -> wxproto.ReplyMsgHeader
 	2, // 1: wxproto.WxSendReplyMsg.body:type_name -> wxproto.ReplyMsgBody
 	2, // [2:2] is the sub-list for method output_type
@@ -379,26 +417,26 @@ var file_proto_wxproto_reply_msg_proto_depIdxs = []int32{
 	0, // [0:2] is the sub-list for field type_name
 }
 
-func init() { file_proto_wxproto_reply_msg_proto_init() }
-func file_proto_wxproto_reply_msg_proto_init() {
-	if File_proto_wxproto_reply_msg_proto != nil {
+func init() { file_app_msg_proto_init() }
+func file_app_msg_proto_init() {
+	if File_app_msg_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_wxproto_reply_msg_proto_rawDesc), len(file_proto_wxproto_reply_msg_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_app_msg_proto_rawDesc), len(file_app_msg_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_proto_wxproto_reply_msg_proto_goTypes,
-		DependencyIndexes: file_proto_wxproto_reply_msg_proto_depIdxs,
-		MessageInfos:      file_proto_wxproto_reply_msg_proto_msgTypes,
+		GoTypes:           file_app_msg_proto_goTypes,
+		DependencyIndexes: file_app_msg_proto_depIdxs,
+		MessageInfos:      file_app_msg_proto_msgTypes,
 	}.Build()
-	File_proto_wxproto_reply_msg_proto = out.File
-	file_proto_wxproto_reply_msg_proto_goTypes = nil
-	file_proto_wxproto_reply_msg_proto_depIdxs = nil
+	File_app_msg_proto = out.File
+	file_app_msg_proto_goTypes = nil
+	file_app_msg_proto_depIdxs = nil
 }

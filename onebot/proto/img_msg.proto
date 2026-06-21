@@ -2,9 +2,9 @@ syntax = "proto3";
 
 package wxproto;
 
-option go_package = "github.com/yincongcyincong/weixin-macos/onebot/proto/wxproto";
+option go_package = "github.com/yincongcyincong/weixin-macos/onebot/proto;wxproto";
 
-import "proto/wxproto/wx_msg.proto";
+import "wx_msg.proto";
 
 // 发送图片消息的protobuf结构
 message WxSendImgMsg {
@@ -46,11 +46,11 @@ message WxSendImgMsg {
 
 message ImgMsgHeader {
   bytes flag = 1;
-  int64 msg_id = 2;
+  int64 session_id = 2;
   bytes client_proof = 3;
-  int64 unknown4 = 4;
-  bytes sys_info = 5;
-  int32 unknown6 = 6;
+  int64 device_id = 4;
+  bytes platform = 5;
+  int32 version = 6;
 }
 
 message ImgMsgExtra {

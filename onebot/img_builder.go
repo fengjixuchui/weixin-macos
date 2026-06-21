@@ -1,36 +1,18 @@
 package main
 
 import (
-	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	mathrand "math/rand"
 	"strconv"
 	"time"
 
-	"github.com/yincongcyincong/weixin-macos/onebot/proto/wxproto"
+	wxproto "github.com/yincongcyincong/weixin-macos/onebot/proto"
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 )
 
 // BuildImgMsgProto 构建发送图片消息的protobuf并返回hex编码的字符串
 func BuildImgMsgProto(sender, targetId, cdnKey, aesKey, md5Key string) (string, error) {
-	// 生成16字节随机client_proof (模拟JS的generateBytes(16))
-	clientProof := make([]byte, 16)
-	const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-	randBytes := make([]byte, 16)
-	rand.Read(randBytes)
-	for i := range clientProof {
-		clientProof[i] = chars[int(randBytes[i])%len(chars)]
-	}
-
-	// 生成5字节varint范围的msgId (2^28 ~ 2^35-1)
-	msgId := mathrand.Int63n(1<<35-1<<28) + (1 << 28)
-
-	// header.unknown4 的值: 从 [0xAF, 0xAC, 0x90, 0x93, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01] 解码
-	// = -228321745 (signed int64)
-	const headerUnknown4 int64 = -228321745
-
 	// client_msg_id: targetId_timestamp_160_xwechat_3
 	timestamp := time.Now().Unix()
 	clientMsgId := targetId + "_" + strconv.FormatInt(timestamp, 10) + "_160_xwechat_3"
@@ -41,11 +23,11 @@ func BuildImgMsgProto(sender, targetId, cdnKey, aesKey, md5Key string) (string, 
 	msg := &wxproto.WxSendImgMsg{
 		Header: &wxproto.ImgMsgHeader{
 			Flag:        []byte{0x00},
-			MsgId:       msgId,
-			ClientProof: clientProof,
-			Unknown4:    headerUnknown4,
-			SysInfo:     []byte("UnifiedPCMac 26 arm64"),
-			Unknown6:    304,
+			SessionId:   int64(globalSessionId),
+			ClientProof: globalClientProof,
+			DeviceId:    int64(globalDeviceId),
+			Platform:    []byte("UnifiedPCMac 26 arm64"),
+			Version:     304,
 		},
 		ClientMsgId: &wxproto.WxString{Value: clientMsgId},
 		Sender:      &wxproto.WxString{Value: sender},

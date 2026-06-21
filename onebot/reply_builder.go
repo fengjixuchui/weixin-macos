@@ -8,18 +8,18 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/yincongcyincong/weixin-macos/onebot/proto/wxproto"
+	wxproto "github.com/yincongcyincong/weixin-macos/onebot/proto"
 )
 
 // BuildReplyMsgProto 构建发送回复消息的protobuf并返回hex编码的字符串
 func BuildReplyMsgProto(sender, receiver string, replyInfo *ReplyInfo) (string, error) {
 	now := time.Now().Unix()
 
-	// 构建appmsg XML
-	appmsgXml := buildReplyAppmsgXml(replyInfo)
+	// 构建appmsg XML (需要传入自己的wxid用于fromusername)
+	appmsgXml := buildReplyAppmsgXml(sender, replyInfo)
 
-	// 构建客户端消息ID
-	clientMsgId := fmt.Sprintf("%s_%d_%d_xwechat_1", sender, now, rand.Intn(100))
+	// 构建客户端消息ID (使用对方的wxid，即receiver)
+	clientMsgId := fmt.Sprintf("%s_%d_%d_xwechat_3", receiver, now, rand.Intn(100))
 
 	// msgsource
 	msgsource := "<msgsource><alnode><fr>1</fr></alnode></msgsource>"
@@ -29,43 +29,41 @@ func BuildReplyMsgProto(sender, receiver string, replyInfo *ReplyInfo) (string, 
 		unknown2  = []byte{}
 		unknown3  = int32(0)
 		msgType   = int32(57)
-		unknown9  = int32(0)
 		flag      = int32(1)
-		unknown11 = int32(0)
 		unknown13 = []byte{}
 		unknown14 = []byte{}
 		unknown15 = []byte{}
-		timestamp = uint32(now)
-		deviceId  = generateDeviceId()
-		version   = uint32(163)
+		version   = uint32(161)
 	)
 
 	msg := &wxproto.WxSendReplyMsg{
 		Header: &wxproto.ReplyMsgHeader{
 			Flag:        []byte{0x00},
-			Timestamp:   &timestamp,
-			ClientProof: generateRandomBytes(16),
-			DeviceId:    &deviceId,
+			SessionId:   &globalSessionId,
+			ClientProof: globalClientProof,
+			DeviceId:    &globalDeviceId,
 			Platform:    proto.String("UnifiedPCMac 26 arm64"),
 			Version:     &version,
 		},
 		Body: &wxproto.ReplyMsgBody{
-			Sender:        &receiver,
+			Sender:        &sender,
 			Unknown2:      unknown2,
 			Unknown3:      &unknown3,
-			Receiver:      &sender,
+			Receiver:      &receiver,
 			MsgType:       &msgType,
 			Content:       []byte(appmsgXml),
-			SendTimestamp:  proto.Int64(now),
+			SendTimestamp: proto.Int64(now),
 			ClientMsgId:   &clientMsgId,
-			Unknown9:      &unknown9,
 			Flag:          &flag,
-			Unknown11:     &unknown11,
 			Msgsource:     []byte(msgsource),
 			Unknown13:     unknown13,
 			Unknown14:     unknown14,
 			Unknown15:     unknown15,
 		},
+		Unknown5:  []byte{},
+		Unknown9:  proto.Int32(0),
+		Unknown10: proto.Uint64(0),
+		Unknown11: proto.Int32(2),
 	}
 
 	data, err := proto.Marshal(msg)
@@ -73,7 +71,7 @@ func BuildReplyMsgProto(sender, receiver string, replyInfo *ReplyInfo) (string, 
 		return "", fmt.Errorf("marshal reply proto failed: %w", err)
 	}
 
-	fmt.Println(fmt.Printf("0x% x\n", data))
+	//fmt.Println(fmt.Print(HexDump(data, 0x0000000C12334C00)))
 
 	return hex.EncodeToString(data), nil
 }
@@ -91,7 +89,7 @@ type ReplyInfo struct {
 }
 
 // buildReplyAppmsgXml 构建回复消息的appmsg XML，字段顺序匹配微信真实protobuf
-func buildReplyAppmsgXml(info *ReplyInfo) string {
+func buildReplyAppmsgXml(selfWxid string, info *ReplyInfo) string {
 	// 时间戳：毫秒转秒
 	createTime := info.CreateTime / 1000
 
@@ -128,14 +126,14 @@ func buildReplyAppmsgXml(info *ReplyInfo) string {
 	xml += `<type>` + fmt.Sprintf("%d", info.MsgType) + `</type>`
 	xml += `<createtime>` + fmt.Sprintf("%d", createTime) + `</createtime>`
 	xml += `<msgsource>` + escapeXmlStr(info.Msgsource) + `</msgsource>`
-	xml += `<displayname>` + escapeXmlStr(info.DisplayName) + `</displayname>`
+	xml += `<displayname></displayname>`
 	xml += `<svrid>` + escapeXmlStr(info.MsgId) + `</svrid>`
 	xml += `<fromusr>` + escapeXmlStr(info.MsgSender) + `</fromusr>`
 	xml += `<content>` + escapeXmlStr(info.MsgContent) + `</content>`
 	xml += `</refermsg>`
 	xml += `</appmsg>`
 
-	xml += `<fromusername>` + escapeXmlStr(info.MsgSender) + `</fromusername>`
+	xml += `<fromusername>` + escapeXmlStr(selfWxid) + `</fromusername>`
 
 	return xml
 }
@@ -162,16 +160,12 @@ func escapeXmlStr(s string) string {
 	return result
 }
 
-// generateRandomBytes 生成随机字节
-func generateRandomBytes(n int) []byte {
+// generateClientProof 生成n字节可见字符（模拟微信的client_proof格式）
+func generateClientProof(n int) []byte {
+	const chars = "0123456789abcdefghijklmnopqrstuvwxyz"
 	b := make([]byte, n)
 	for i := range b {
-		b[i] = byte(rand.Intn(256))
+		b[i] = chars[rand.Intn(len(chars))]
 	}
 	return b
-}
-
-// generateDeviceId 动态生成设备ID (大整数，高位置1模拟真实设备)
-func generateDeviceId() uint64 {
-	return rand.Uint64() | (0xFFFFFFFF << 32)
 }

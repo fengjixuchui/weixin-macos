@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v3.5.1
-// source: proto/wxproto/text_msg.proto
+// source: text_msg.proto
 
 package wxproto
 
@@ -32,7 +32,7 @@ type WxSendTextMsg struct {
 
 func (x *WxSendTextMsg) Reset() {
 	*x = WxSendTextMsg{}
-	mi := &file_proto_wxproto_text_msg_proto_msgTypes[0]
+	mi := &file_text_msg_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44,7 +44,7 @@ func (x *WxSendTextMsg) String() string {
 func (*WxSendTextMsg) ProtoMessage() {}
 
 func (x *WxSendTextMsg) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_wxproto_text_msg_proto_msgTypes[0]
+	mi := &file_text_msg_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -57,7 +57,7 @@ func (x *WxSendTextMsg) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WxSendTextMsg.ProtoReflect.Descriptor instead.
 func (*WxSendTextMsg) Descriptor() ([]byte, []int) {
-	return file_proto_wxproto_text_msg_proto_rawDescGZIP(), []int{0}
+	return file_text_msg_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *WxSendTextMsg) GetType() int32 {
@@ -88,7 +88,7 @@ type WxSendTextBody struct {
 
 func (x *WxSendTextBody) Reset() {
 	*x = WxSendTextBody{}
-	mi := &file_proto_wxproto_text_msg_proto_msgTypes[1]
+	mi := &file_text_msg_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -100,7 +100,7 @@ func (x *WxSendTextBody) String() string {
 func (*WxSendTextBody) ProtoMessage() {}
 
 func (x *WxSendTextBody) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_wxproto_text_msg_proto_msgTypes[1]
+	mi := &file_text_msg_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -113,7 +113,7 @@ func (x *WxSendTextBody) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WxSendTextBody.ProtoReflect.Descriptor instead.
 func (*WxSendTextBody) Descriptor() ([]byte, []int) {
-	return file_proto_wxproto_text_msg_proto_rawDescGZIP(), []int{1}
+	return file_text_msg_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *WxSendTextBody) GetReceiver() *WxString {
@@ -158,11 +158,11 @@ func (x *WxSendTextBody) GetXml() []byte {
 	return nil
 }
 
-var File_proto_wxproto_text_msg_proto protoreflect.FileDescriptor
+var File_text_msg_proto protoreflect.FileDescriptor
 
-const file_proto_wxproto_text_msg_proto_rawDesc = "" +
+const file_text_msg_proto_rawDesc = "" +
 	"\n" +
-	"\x1cproto/wxproto/text_msg.proto\x12\awxproto\x1a\x1aproto/wxproto/wx_msg.proto\"P\n" +
+	"\x0etext_msg.proto\x12\awxproto\x1a\fwx_msg.proto\"P\n" +
 	"\rWxSendTextMsg\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\x05R\x04type\x12+\n" +
 	"\x04body\x18\x02 \x01(\v2\x17.wxproto.WxSendTextBodyR\x04body\"\xb4\x01\n" +
@@ -172,27 +172,27 @@ const file_proto_wxproto_text_msg_proto_rawDesc = "" +
 	"\x04flag\x18\x03 \x01(\x05R\x04flag\x12\x1c\n" +
 	"\ttimestamp\x18\x04 \x01(\x03R\ttimestamp\x12\x15\n" +
 	"\x06msg_id\x18\x05 \x01(\x03R\x05msgId\x12\x10\n" +
-	"\x03xml\x18\x06 \x01(\fR\x03xmlB>Z<github.com/yincongcyincong/weixin-macos/onebot/proto/wxprotob\x06proto3"
+	"\x03xml\x18\x06 \x01(\fR\x03xmlB>Z<github.com/yincongcyincong/weixin-macos/onebot/proto;wxprotob\x06proto3"
 
 var (
-	file_proto_wxproto_text_msg_proto_rawDescOnce sync.Once
-	file_proto_wxproto_text_msg_proto_rawDescData []byte
+	file_text_msg_proto_rawDescOnce sync.Once
+	file_text_msg_proto_rawDescData []byte
 )
 
-func file_proto_wxproto_text_msg_proto_rawDescGZIP() []byte {
-	file_proto_wxproto_text_msg_proto_rawDescOnce.Do(func() {
-		file_proto_wxproto_text_msg_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_proto_wxproto_text_msg_proto_rawDesc), len(file_proto_wxproto_text_msg_proto_rawDesc)))
+func file_text_msg_proto_rawDescGZIP() []byte {
+	file_text_msg_proto_rawDescOnce.Do(func() {
+		file_text_msg_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_text_msg_proto_rawDesc), len(file_text_msg_proto_rawDesc)))
 	})
-	return file_proto_wxproto_text_msg_proto_rawDescData
+	return file_text_msg_proto_rawDescData
 }
 
-var file_proto_wxproto_text_msg_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
-var file_proto_wxproto_text_msg_proto_goTypes = []any{
+var file_text_msg_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_text_msg_proto_goTypes = []any{
 	(*WxSendTextMsg)(nil),  // 0: wxproto.WxSendTextMsg
 	(*WxSendTextBody)(nil), // 1: wxproto.WxSendTextBody
 	(*WxString)(nil),       // 2: wxproto.WxString
 }
-var file_proto_wxproto_text_msg_proto_depIdxs = []int32{
+var file_text_msg_proto_depIdxs = []int32{
 	1, // 0: wxproto.WxSendTextMsg.body:type_name -> wxproto.WxSendTextBody
 	2, // 1: wxproto.WxSendTextBody.receiver:type_name -> wxproto.WxString
 	2, // [2:2] is the sub-list for method output_type
@@ -202,27 +202,27 @@ var file_proto_wxproto_text_msg_proto_depIdxs = []int32{
 	0, // [0:2] is the sub-list for field type_name
 }
 
-func init() { file_proto_wxproto_text_msg_proto_init() }
-func file_proto_wxproto_text_msg_proto_init() {
-	if File_proto_wxproto_text_msg_proto != nil {
+func init() { file_text_msg_proto_init() }
+func file_text_msg_proto_init() {
+	if File_text_msg_proto != nil {
 		return
 	}
-	file_proto_wxproto_wx_msg_proto_init()
+	file_wx_msg_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_wxproto_text_msg_proto_rawDesc), len(file_proto_wxproto_text_msg_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_text_msg_proto_rawDesc), len(file_text_msg_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_proto_wxproto_text_msg_proto_goTypes,
-		DependencyIndexes: file_proto_wxproto_text_msg_proto_depIdxs,
-		MessageInfos:      file_proto_wxproto_text_msg_proto_msgTypes,
+		GoTypes:           file_text_msg_proto_goTypes,
+		DependencyIndexes: file_text_msg_proto_depIdxs,
+		MessageInfos:      file_text_msg_proto_msgTypes,
 	}.Build()
-	File_proto_wxproto_text_msg_proto = out.File
-	file_proto_wxproto_text_msg_proto_goTypes = nil
-	file_proto_wxproto_text_msg_proto_depIdxs = nil
+	File_text_msg_proto = out.File
+	file_text_msg_proto_goTypes = nil
+	file_text_msg_proto_depIdxs = nil
 }

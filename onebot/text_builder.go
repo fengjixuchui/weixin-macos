@@ -7,7 +7,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/yincongcyincong/weixin-macos/onebot/proto/wxproto"
+	wxproto "github.com/yincongcyincong/weixin-macos/onebot/proto"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -18,7 +18,7 @@ func BuildTextMsgProto(receiver, content, atUser string) (string, error) {
 	if atUser != "" {
 		xmlStr += "<atuserlist>" + atUser + "</atuserlist>"
 	}
-	xmlStr += "<alnode><fr>1</fr></alnode></msgsource>\x00"
+	xmlStr += "<alnode><fr>1</fr></alnode></msgsource>"
 
 	// 生成随机消息ID
 	msgId := rand.Int63n(1<<34) | (1 << 34)
@@ -39,6 +39,8 @@ func BuildTextMsgProto(receiver, content, atUser string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("marshal text proto failed: %w", err)
 	}
+
+	//fmt.Printf("[text-proto] final protobuf hex dump:\n%s\n", HexDump(data, 0))
 
 	return hex.EncodeToString(data), nil
 }
@@ -127,7 +129,22 @@ func BuildSendPayload(taskId int64, msgType string) string {
 	case "reply":
 		payloadData[0] = 0x6E
 		payloadData[16] = 0x10
-		payloadData[28] = 0x22
+		payloadData[28] = 0x20
+		payloadData[92] = 0x6E
+	case "file":
+		payloadData[0] = 0x6E
+		payloadData[16] = 0x10
+		payloadData[28] = 0x20
+		payloadData[92] = 0x6E
+	case "fileupload":
+		payloadData[0] = 0x6E
+		payloadData[16] = 0x10
+		payloadData[28] = 0x27
+		payloadData[92] = 0x6E
+	case "voice":
+		payloadData[0] = 0x6E
+		payloadData[16] = 0x10
+		payloadData[28] = 0x21
 		payloadData[92] = 0x6E
 	}
 

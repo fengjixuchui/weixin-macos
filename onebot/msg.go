@@ -5,6 +5,20 @@ import (
 	"time"
 )
 
+func cleanExpiredDownloads() {
+	ticker := time.NewTicker(1 * time.Hour)
+	for range ticker.C {
+		now := time.Now().UnixMilli()
+		userID2FileMsgMap.Range(func(key, value any) bool {
+			req := value.(*DownloadRequest)
+			if now-req.LastAppendTime > 24*60*60*1000 {
+				userID2FileMsgMap.Delete(key)
+			}
+			return true
+		})
+	}
+}
+
 func Download(rawMsg []byte) error {
 	downloadReq := new(DownloadRequest)
 	err := json.Unmarshal(rawMsg, downloadReq)

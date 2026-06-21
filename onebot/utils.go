@@ -98,6 +98,15 @@ func GetFileMD5(filePath string) (string, error) {
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
+// FileToBase64 读取文件并返回 base64 编码字符串
+func FileToBase64(filePath string) (string, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", fmt.Errorf("read file failed: %v", err)
+	}
+	return base64.StdEncoding.EncodeToString(data), nil
+}
+
 func SaveAudioFile(silkBytes []byte) (path string, err error) {
 	mp3Bytes, err := SilkToMp3(silkBytes)
 	if err != nil {
@@ -221,6 +230,22 @@ func DetectFileFormat(data []byte) string {
 		return "rar"
 	case bytes.HasPrefix(data, []byte("7z\xBC\xAF\x27\x1C")):
 		return "7z"
+
+	// 音频格式
+	case data[0] == 0x02 && bytes.HasPrefix(data[1:], []byte("#!SILK")):
+		return "silk"
+	case bytes.HasPrefix(data, []byte("#!SILK")):
+		return "silk"
+	case bytes.HasPrefix(data, []byte("RIFF")) && len(data) > 8 && bytes.HasPrefix(data[8:], []byte("WAVE")):
+		return "wav"
+	case bytes.HasPrefix(data, []byte{0xFF, 0xFB}) || bytes.HasPrefix(data, []byte{0xFF, 0xF3}) || bytes.HasPrefix(data, []byte{0xFF, 0xF2}):
+		return "mp3"
+	case bytes.HasPrefix(data, []byte("ID3")):
+		return "mp3"
+	case bytes.HasPrefix(data, []byte("OggS")):
+		return "ogg"
+	case bytes.HasPrefix(data, []byte("fLaC")):
+		return "flac"
 
 	default:
 		return "unknown"
@@ -418,4 +443,41 @@ func cleanAndReattach() {
 	Info("等待微信重新启动...")
 	// 重新等待微信进程并 attach
 	attachWechat()
+}
+
+// HexDump formats data like:
+// 0000000C12334C00  0A 40 0A 01 00 10 C6 BC  90 B9 08 1A 10 6D 36 34  .@....Ƽ.....m64
+func HexDump(data []byte, baseAddr uint64) string {
+	var sb strings.Builder
+	for i := 0; i < len(data); i += 16 {
+		// Address
+		sb.WriteString(fmt.Sprintf("%016X  ", baseAddr+uint64(i)))
+
+		// Hex bytes
+		for j := 0; j < 16; j++ {
+			if j == 8 {
+				sb.WriteByte(' ')
+			}
+			if i+j < len(data) {
+				sb.WriteString(fmt.Sprintf("%02X ", data[i+j]))
+			} else {
+				sb.WriteString("   ")
+			}
+		}
+
+		// ASCII
+		sb.WriteByte(' ')
+		for j := 0; j < 16; j++ {
+			if i+j < len(data) {
+				b := data[i+j]
+				if b >= 0x20 && b <= 0x7E {
+					sb.WriteByte(b)
+				} else {
+					sb.WriteByte('.')
+				}
+			}
+		}
+		sb.WriteByte('\n')
+	}
+	return sb.String()
 }

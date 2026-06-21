@@ -1,12 +1,109 @@
-var targetPath = "/Applications/WeChat.app/Contents/Resources/wechat.dylib";
+var targetPath = "/Applications/WeChat.app/Contents/MacOS/WeChat";
 var module = Process.enumerateModules().find(function(m) {
     return m.path === targetPath;
 });
-const baseAddr = module.base;
-if (!baseAddr) {
-    console.error("[!] 找不到 WeChat 模块基址，请检查进程名。");
+if (!module) {
+    throw new Error("[-] Cannot find module: " + targetPath);
 }
-console.log("[+] WeChat base address: " + baseAddr);
+var moduleBase = module.base;
+console.log("[+] WeChat module base: " + moduleBase);
+
+// Enumerate readable ranges within 500MB from module base to search for "req2buf"
+var searchSize = 1000 * 1024 * 1024;
+var searchEnd = moduleBase.add(searchSize);
+var _req2bufSearchAddr = null;
+var baseAddr = null;
+
+var ranges = Process.enumerateRanges("r--").filter(function(r) {
+    var rangeEnd = r.base.add(r.size);
+    return r.base.compare(searchEnd) < 0 && rangeEnd.compare(moduleBase) > 0;
+});
+
+console.log("[+] Found " + ranges.length + " readable ranges within 1000MB window");
+
+var pending = ranges.length;
+if (pending === 0) {
+    throw new Error("[-] No readable ranges found within 1000MB from module base");
+}
+
+ranges.forEach(function(r) {
+    Memory.scan(r.base, r.size, "72 65 71 32 62 75 66", {
+        onMatch: function(address, size) {
+            if (_req2bufSearchAddr === null) {
+                var rangeInfo = Process.findRangeByAddress(address);
+                if (rangeInfo) {
+                    if (rangeInfo.size > 100 * 1024 * 1024) {
+                        _req2bufSearchAddr = address;
+                        console.log("[+] Range size > 100MB, accepted as base address");
+                    }
+                }
+            }
+        },
+        onError: function(reason) {
+            // skip unreadable sub-pages
+        },
+        onComplete: function() {
+            pending--;
+            if (pending === 0) {
+                if (_req2bufSearchAddr === null) {
+                    throw new Error("[-] Cannot find 'req2buf' keyword in a range > 100MB");
+                }
+
+                var foundRange = Process.findRangeByAddress(_req2bufSearchAddr);
+                baseAddr = foundRange.base;
+                console.log("[+] Base address from range: " + baseAddr);
+                console.log("[+] Range size: " + foundRange.size);
+
+                initAddresses();
+            }
+        }
+    });
+});
+
+function initAddresses() {
+    // 文本消息全局变量 (new_text.js approach)
+    blrX8Addr = baseAddr.add({{.blrX8Addr}});
+    autoBufferWriteFunc = baseAddr.add({{.autoBufferWriteFunc}});
+
+    // 双方公共使用的地址
+    req2bufEnterAddr = baseAddr.add({{.req2bufEnterAddr}});
+    req2bufExitAddr = baseAddr.add({{.req2bufExitAddr}});
+    sendFuncAddr = baseAddr.add({{.sendFuncAddr}});
+    buf2RespAddr = baseAddr.add({{.buf2RespAddr}});
+
+    uploadImageAddr = baseAddr.add({{.uploadImageAddr}});
+    cndOnCompleteAddr = baseAddr.add({{.cndOnCompleteAddr}});
+
+    uploadGetCallbackWrapperAddr = baseAddr.add({{.uploadGetCallbackWrapperAddr}});
+    uploadGetCallbackWrapperFuncAddr = baseAddr.add({{.uploadGetCallbackWrapperFuncAddr}});
+    uploadOnCompleteAddr = baseAddr.add({{.uploadOnCompleteAddr}});
+    uploadOnCompleteFuncAddr = baseAddr.add({{.uploadOnCompleteFuncAddr}});
+    downloadImagAddr = baseAddr.add({{.downloadImagAddr}});
+    startDownloadMedia = baseAddr.add({{.startDownloadMedia}});
+    downloadFileAddr = baseAddr.add({{.downloadFileAddr}});
+    downloadVideoAddr = baseAddr.add({{.downloadVideoAddr}});
+
+	sendMessageCallbackFunc = baseAddr.add(0x0);
+	imgMessageCallbackFunc = baseAddr.add(0x0);
+	videoMessageCallbackFunc = baseAddr.add(0x0);
+    replyMessageCallbackFunc = baseAddr.add(0x0);
+    voiceMessageCallbackFunc = baseAddr.add(0x0);
+
+    setupRetOneStub();  // 必须同步先执行，初始化fakeVtable
+    setImmediate(setupSendTextMessageDynamic);
+    setImmediate(setupSendFileMessageDynamic);
+    setImmediate(setupSendFileUploadMessageDynamic);
+    setImmediate(attachBlrX8Hook);
+    setImmediate(AttachSendFunc);
+    setImmediate(attachReq2buf);
+    setImmediate(setupSendImgMessageDynamic);
+    setImmediate(attachUploadMedia);
+    setImmediate(patchCdnOnComplete);
+    setImmediate(attachGetCallbackFromWrapper);
+    setImmediate(setupSendReplyMessageDynamic);
+    setImmediate(setupDownloadFileDynamic);
+    setImmediate(setReceiver);
+}
 
 // -------------------------基础函数分区-------------------------
 function hexToByteArray(hexStr) {
@@ -36,7 +133,7 @@ function generateAESKey() {
     return key;
 }
 
-const MAX_PROTOBUF_MSG_BYTES = 4 * 1024 * 1024;
+const MAX_FRIDA_MESSAGE_BYTES = 4 * 1024 * 1024;
 const DOWNLOAD_CHUNK_BYTES = 256 * 1024;
 
 function isReadablePointer(addr) {
@@ -110,72 +207,79 @@ function sendDownloadChunks(dataPtr, dataLen, fileId, cdnUrl) {
     }
 }
 
+function fillUploadX1AndStart(idAddr, pathAddr, x1Buffer, receiver, md5, filePath, payloadHex) {
+    if (uploadGlobalX0.equals(ptr(0))) {
+        console.error("[!] uploadGlobalX0 尚未初始化，请等待 hook 捕获");
+        return "fail";
+    }
+
+    const payload = hexToByteArray(payloadHex);
+    patchString(idAddr, receiver + "_" + String(Math.floor(Date.now() / 1000)) + "_" + Math.floor(Math.random() * 1001) + "_1");
+    patchString(md5Addr, md5);
+    patchString(uploadAesKeyAddr, generateAESKey());
+    patchString(pathAddr, filePath);
+
+    x1Buffer.writeByteArray(payload);
+    x1Buffer.writePointer(uploadFunc1Addr);
+    x1Buffer.add(0x08).writePointer(uploadFunc2Addr);
+    x1Buffer.add(0x48).writePointer(idAddr);
+    x1Buffer.add(0x68).writeUtf8String(receiver);
+    x1Buffer.add(0xa8).writePointer(md5Addr);
+    x1Buffer.add(0xe8).writePointer(pathAddr);
+    x1Buffer.add(0x118).writePointer(pathAddr);
+    x1Buffer.add(0x148).writePointer(pathAddr);
+    x1Buffer.add(0x200).writePointer(uploadAesKeyAddr);
+
+    const startUploadMedia = new NativeFunction(uploadImageAddr, 'int64', ['pointer', 'pointer']);
+    return startUploadMedia(uploadGlobalX0, x1Buffer);
+}
+
 // -------------------------基础函数分区-------------------------
 
 // -------------------------全局变量分区-------------------------
 
-// 文本消息全局变量
-var textCallbackFuncAddr = baseAddr.add({{.textCallbackFuncAddr}});
-var protobufAddr = textCallbackFuncAddr.add(0x40);
-var patchTextProtobufAddr = textCallbackFuncAddr.add(0x20);
-var patchTextProtobufByte
-var patchTextProtobufDeleteAddr = textCallbackFuncAddr.add(0x5C);
-var patchTextProtobufDeleteByte
+// 文本消息全局变量 (new_text.js approach)
+var blrX8Addr;
+var autoBufferWriteFunc;
 var textCgiAddr = ptr(0);
 var sendTextMessageAddr = ptr(0);
 var textMessageAddr = ptr(0);
-var textProtoX1PayloadAddr = ptr(0);
-var sendMessageCallbackFunc = baseAddr.add({{.sendMessageCallbackFunc}});
+var sendMessageCallbackFunc;
+var retOneStub = ptr(0);
+var fakeVtable = ptr(0);
+var pendingInsertMsgAddr = ptr(0);  // 等待buf2resp后清理的insertMsgAddr
+var pendingSendMsgType = "";  // 等待buf2resp回调时使用的消息类型
+var pendingBuf2RespTaskId = 0;  // 等待buf2resp匹配的taskId
+var textProtoDataAddr = ptr(0);
 
 
 // 双方公共使用的地址
 var triggerX1Payload;
 var triggerX0;
-var req2bufEnterAddr = baseAddr.add({{.req2bufEnterAddr}});
-var req2bufExitAddr = baseAddr.add({{.req2bufExitAddr}});
-var sendFuncAddr = baseAddr.add({{.sendFuncAddr}});
+var req2bufEnterAddr;
+var req2bufExitAddr;
+var sendFuncAddr;
 var insertMsgAddr = ptr(0);
 var sendMsgType = "";
-var buf2RespAddr = baseAddr.add({{.buf2RespAddr}});
+var buf2RespAddr;
 
-// 图片消息全局变量
-var imageCallbackFuncAddr = baseAddr.add({{.imageCallbackFuncAddr}});
-var imgProtobufAddr = imageCallbackFuncAddr.add(0x50);
-var patchImgProtobufFunc1 = imageCallbackFuncAddr.add(0x10);
-var patchImgProtobufFunc1Byte;
-var patchImgProtobufFunc2 = imageCallbackFuncAddr.add(0x30);
-var patchImgProtobufFunc2Byte;
-var imgProtobufDeleteAddr = imageCallbackFuncAddr.add(0x6c);
-var imgProtobufDeleteAddrByte;
+var uploadImageAddr;
+var cndOnCompleteAddr;
+var imgMessageCallbackFunc;
+var videoMessageCallbackFunc;
 
-// 视频消息全局变量
-var videoCallbackFuncAddr = baseAddr.add({{.videoCallbackFuncAddr}});
-var videoProtobufAddr = videoCallbackFuncAddr.add(0x50);
-var patchVideoProtobufFunc1 = videoCallbackFuncAddr.add(0x10);
-var patchVideoProtobufFunc1Byte;
-var patchVideoProtobufFunc2 = videoCallbackFuncAddr.add(0x30);
-var patchVideoProtobufFunc2Byte;
-var videoProtobufDeleteAddr = videoCallbackFuncAddr.add(0x6c);
-var videoProtobufDeleteAddrByte;
-
-var uploadImageAddr = baseAddr.add({{.uploadImageAddr}});
-var cndOnCompleteAddr = baseAddr.add({{.cndOnCompleteAddr}});
-var imgMessageCallbackFunc = baseAddr.add({{.imgMessageCallbackFunc}});
-var videoMessageCallbackFunc = baseAddr.add({{.videoMessageCallbackFunc}});
-
-var uploadGetCallbackWrapperAddr = baseAddr.add({{.uploadGetCallbackWrapperAddr}});
-var uploadGetCallbackWrapperFuncAddr = baseAddr.add({{.uploadGetCallbackWrapperFuncAddr}});
-var uploadOnCompleteAddr = baseAddr.add({{.uploadOnCompleteAddr}});
-var uploadOnCompleteFuncAddr = baseAddr.add({{.uploadOnCompleteFuncAddr}});
-var downloadImagAddr = baseAddr.add({{.downloadImagAddr}});
-var startDownloadMedia = baseAddr.add({{.startDownloadMedia}})
-var downloadFileAddr = baseAddr.add({{.downloadFileAddr}})
-var downloadVideoAddr = baseAddr.add({{.downloadVideoAddr}})
+var uploadGetCallbackWrapperAddr;
+var uploadGetCallbackWrapperFuncAddr;
+var uploadOnCompleteAddr;
+var uploadOnCompleteFuncAddr;
+var downloadImagAddr;
+var startDownloadMedia;
+var downloadFileAddr;
+var downloadVideoAddr;
 
 var downloadGlobalX0;
 var downloadFileX1 = ptr(0)
 var fileIdAddr = ptr(0)
-var fileMd5Addr = ptr(0)
 var downloadAesKeyAddr = ptr(0)
 var filePathAddr = ptr(0)
 var fileCdnUrlAddr = ptr(0)
@@ -183,7 +287,6 @@ var uploadImageX1 = ptr(0);
 var imgCgiAddr = ptr(0);
 var sendImgMessageAddr = ptr(0);
 var imgMessageAddr = ptr(0);
-var imgProtoX1PayloadAddr = ptr(0);
 var uploadGlobalX0 = ptr(0)
 var uploadFunc1Addr = ptr(0)
 var uploadFunc2Addr = ptr(0)
@@ -196,10 +299,22 @@ var uploadCallback = ptr(0)
 var videoCgiAddr = ptr(0);
 var sendVideoMessageAddr = ptr(0);
 var videoMessageAddr = ptr(0);
-var videoProtoX1PayloadAddr = ptr(0);
 var uploadVideoX1 = ptr(0);
 var videoIdAddr = ptr(0);
 var videoPathAddr1 = ptr(0)
+
+// 语音消息全局变量
+var voiceMessageCallbackFunc;
+var voiceCgiAddr = ptr(0);
+var sendVoiceMessageAddr = ptr(0);
+var voiceMessageAddr = ptr(0);
+var uploadVoiceX1 = ptr(0);
+var voiceIdAddr = ptr(0);
+var voicePathAddr1 = ptr(0);
+var voiceProtoHexGlobal = "";
+var voiceDurationGlobal = 0;
+var voiceSilkDataLenGlobal = 0;
+var voiceAudioDataAddr = ptr(0);
 
 
 // 发送消息的全局变量
@@ -213,21 +328,27 @@ var imgProtoHexGlobal = "";
 var videoProtoHexGlobal = "";
 // 回复消息protobuf全局变量 (从Go直接传入hex编码)
 var replyProtoHexGlobal = "";
+// 文件消息protobuf全局变量 (从Go直接传入hex编码)
+var fileProtoHexGlobal = "";
+var fileUploadProtoHexGlobal = "";
+
+// 文件消息全局变量
+var fileCgiAddr = ptr(0);
+var sendFileMessageAddr = ptr(0);
+var fileMessageAddr = ptr(0);
+var uploadFileIdAddr = ptr(0);
+var uploadFileX1 = ptr(0);
+
+// sendfileuploadmsg 全局变量
+var fileUploadCgiAddr = ptr(0);
+var sendFileUploadMessageAddr = ptr(0);
+var fileUploadMessageAddr = ptr(0);
 
 // 回复消息全局变量
-var replyCallbackFuncAddr = baseAddr.add({{.replyCallbackFuncAddr}});
-var replyProtobufAddr = replyCallbackFuncAddr.add(0x50);
-var patchReplyProtobufFunc1 = replyCallbackFuncAddr.add(0x10);
-var patchReplyProtobufFunc1Byte;
-var patchReplyProtobufFunc2 = replyCallbackFuncAddr.add(0x30);
-var patchReplyProtobufFunc2Byte;
-var replyProtobufDeleteAddr = replyCallbackFuncAddr.add(0x6c);
-var replyProtobufDeleteAddrByte;
-var replyMessageCallbackFunc = baseAddr.add({{.replyMessageCallbackFunc}});
+var replyMessageCallbackFunc;
 var replyCgiAddr = ptr(0);
 var sendReplyMessageAddr = ptr(0);
 var replyMessageAddr = ptr(0);
-var replyProtoX1PayloadAddr = ptr(0);
 
 // -------------------------全局变量分区-------------------------
 
@@ -237,11 +358,10 @@ var replyProtoX1PayloadAddr = ptr(0);
 function setupSendTextMessageDynamic() {
     // 动态分配内存
 
-    // 1. 动态分配内存块（按需分配大小）
-    // 分配原则：字符串给 64-128 字节，结构体按实际大小分配
     textCgiAddr = Memory.alloc(128);
     sendTextMessageAddr = Memory.alloc(256);
     textMessageAddr = Memory.alloc(256);
+    textProtoDataAddr = Memory.alloc(4096);
 
     // A. 写入字符串内容
     patchString(textCgiAddr, "/cgi-bin/micromsg-bin/newsendmsg");
@@ -252,113 +372,160 @@ function setupSendTextMessageDynamic() {
     sendTextMessageAddr.add(0x10).writeU64(0);
     sendTextMessageAddr.add(0x18).writeU64(1);
     sendTextMessageAddr.add(0x20).writeU32(taskIdGlobal);
-    sendTextMessageAddr.add(0x28).writePointer(textMessageAddr); // 指向动态分配的 Message
-
-    // console.log(" [+] sendTextMessageAddr Object: ", hexdump(sendTextMessageAddr, {
-    //     offset: 0,
-    //     length: 48,
-    //     header: true,
-    //     ansi: true
-    // }));
+    sendTextMessageAddr.add(0x28).writePointer(textMessageAddr);
 
     // C. 构建 Message 结构体
-    textMessageAddr.add(0x00).writePointer(sendMessageCallbackFunc);
+    textMessageAddr.add(0x00).writePointer(fakeVtable);
     textMessageAddr.add(0x08).writeU32(taskIdGlobal);
     textMessageAddr.add(0x0c).writeU32(0x20a);
     textMessageAddr.add(0x10).writeU64(0x3);
     textMessageAddr.add(0x18).writePointer(textCgiAddr);
     textMessageAddr.add(0x20).writeU64(uint64("0x20"));
 
-    // console.log(" [+] textMessageAddr Object: ", hexdump(textMessageAddr, {
-    //     offset: 0,
-    //     length: 64,
-    //     header: true,
-    //     ansi: true
-    // }));
-
-    patchTextProtobufByte = patchTextProtobufAddr.readByteArray(4);
-    patchTextProtobufDeleteByte = patchTextProtobufDeleteAddr.readByteArray(4);
+    console.log("[+] Dynamic Text Message Setup Complete.");
 }
 
-setImmediate(setupSendTextMessageDynamic);
+
+// -------------------------发送文件消息分区-------------------------
+function setupSendFileMessageDynamic() {
+    fileCgiAddr = Memory.alloc(128);
+    sendFileMessageAddr = Memory.alloc(256);
+    fileMessageAddr = Memory.alloc(256);
+    uploadFileIdAddr = Memory.alloc(128);
+    uploadFileX1 = Memory.alloc(1024);
+    patchString(uploadFileIdAddr, "file_upload_not_init");
+
+    patchString(fileCgiAddr, "/cgi-bin/micromsg-bin/sendappmsg");
+
+    sendFileMessageAddr.add(0x00).writeU64(0);
+    sendFileMessageAddr.add(0x08).writeU64(0);
+    sendFileMessageAddr.add(0x10).writeU64(0);
+    sendFileMessageAddr.add(0x18).writeU64(1);
+    sendFileMessageAddr.add(0x20).writeU32(taskIdGlobal);
+    sendFileMessageAddr.add(0x28).writePointer(fileMessageAddr);
+
+    fileMessageAddr.add(0x00).writePointer(fakeVtable);
+    fileMessageAddr.add(0x08).writeU32(taskIdGlobal);
+    fileMessageAddr.add(0x0c).writeU32(0x6e);
+    fileMessageAddr.add(0x10).writeU64(0x3);
+    fileMessageAddr.add(0x18).writePointer(fileCgiAddr);
+    fileMessageAddr.add(0x20).writeU64(0x20);
+    fileMessageAddr.add(0x28).writeU64(uint64("0x8000000000000030"));
+    fileMessageAddr.add(0x30).writeU64(uint64("0x0000000001010100"));
+}
+
+function triggerSendFileMessage(taskId, sender, receiver, protoHex, payloadHex) {
+    return triggerSendMediaMessage(taskId, sender, receiver, protoHex, payloadHex, "file");
+}
+
+function triggerUploadFile(receiver, md5, filePath, payloadHex) {
+    return fillUploadX1AndStart(uploadFileIdAddr, ImagePathAddr1, uploadFileX1, receiver, md5, filePath, payloadHex);
+}
+
+// -------------------------sendfileuploadmsg分区-------------------------
+function setupSendFileUploadMessageDynamic() {
+    fileUploadCgiAddr = Memory.alloc(128);
+    sendFileUploadMessageAddr = Memory.alloc(256);
+    fileUploadMessageAddr = Memory.alloc(256);
+
+    patchString(fileUploadCgiAddr, "/cgi-bin/micromsg-bin/sendfileuploadmsg");
+
+    sendFileUploadMessageAddr.add(0x00).writeU64(0);
+    sendFileUploadMessageAddr.add(0x08).writeU64(0);
+    sendFileUploadMessageAddr.add(0x10).writeU64(0);
+    sendFileUploadMessageAddr.add(0x18).writeU64(1);
+    sendFileUploadMessageAddr.add(0x20).writeU32(taskIdGlobal);
+    sendFileUploadMessageAddr.add(0x28).writePointer(fileUploadMessageAddr);
+
+    fileUploadMessageAddr.add(0x00).writePointer(fakeVtable);
+    fileUploadMessageAddr.add(0x08).writeU32(taskIdGlobal);
+    fileUploadMessageAddr.add(0x0c).writeU32(0x6e);
+    fileUploadMessageAddr.add(0x10).writeU64(0x3);
+    fileUploadMessageAddr.add(0x18).writePointer(fileUploadCgiAddr);
+    fileUploadMessageAddr.add(0x20).writeU64(0x20);
+    fileUploadMessageAddr.add(0x28).writeU64(uint64("0x8000000000000030"));
+    fileUploadMessageAddr.add(0x30).writeU64(uint64("0x0000000001010100"));
+}
+
+function triggerSendFileUploadMessage(taskId, sender, receiver, protoHex, payloadHex) {
+    return triggerSendMediaMessage(taskId, sender, receiver, protoHex, payloadHex, "fileupload");
+}
+
+// -------------------------发送文件消息分区-------------------------
 
 
-function patchTextProtoBuf() {
 
-    Interceptor.attach(textCallbackFuncAddr, {
-        onEnter: function (args) {
-            var firstValue = this.context.sp.readU32();
-            if (firstValue === taskIdGlobal) {
-                if (patchTextProtobufAddr.readU32() !== 3573751839) {
-                    Memory.patchCode(patchTextProtobufAddr, 4, code => {
-                        const cw = new Arm64Writer(code, {pc: patchTextProtobufAddr});
-                        cw.putNop();
-                        cw.flush();
-                    });
-                    Memory.patchCode(patchTextProtobufDeleteAddr, 4, code => {
-                        const cw = new Arm64Writer(code, {pc: patchTextProtobufDeleteAddr});
-                        cw.putNop();
-                        cw.flush();
-                    });
-                }
-            } else {
-                if (patchTextProtobufAddr.readU32() === 3573751839) {
-                    Memory.patchCode(patchTextProtobufAddr, 4, code => {
-                        const cw = new Arm64Writer(code, {pc: patchTextProtobufAddr});
-                        cw.putBytes(new Uint8Array(patchTextProtobufByte));
-                        cw.flush();
-                    });
-                    Memory.patchCode(patchTextProtobufDeleteAddr, 4, code => {
-                        const cw = new Arm64Writer(code, {pc: patchTextProtobufDeleteAddr});
-                        cw.putBytes(new Uint8Array(patchTextProtobufDeleteByte));
-                        cw.flush();
-                    });
-                }
+// 创建一个只返回1的小函数stub
+function setupRetOneStub() {
+    retOneStub = Memory.alloc(Process.pageSize);
+    Memory.patchCode(retOneStub, 8, code => {
+        // MOV W0, #1 = 0x52800020, RET = 0xD65F03C0 (little-endian)
+        code.writeByteArray([0x20, 0x00, 0x80, 0x52, 0xC0, 0x03, 0x5F, 0xD6]);
+    });
+    console.log("[+] Return-1 stub created at: " + retOneStub);
 
+    // 构造假vtable：所有槽位指向retOneStub，这样mars对我们伪造结构做虚调用时不会崩溃
+    fakeVtable = Memory.alloc(512);
+    for (var i = 0; i < 64; i++) {
+        fakeVtable.add(i * 8).writePointer(retOneStub);
+    }
+    console.log("[+] Fake vtable created at: " + fakeVtable);
+}
+
+function attachBlrX8Hook() {
+    console.log("[+] Hooking BLR X8 at: " + blrX8Addr);
+
+    var nativeAutoBufferWrite = new NativeFunction(autoBufferWriteFunc, 'int', ['pointer', 'pointer', 'int']);
+
+    Interceptor.attach(blrX8Addr, {
+        onEnter: function(args) {
+            var currentTaskId = this.context.x20.toUInt32();
+            if (currentTaskId !== taskIdGlobal) {
+                return;
             }
-        }
-    })
 
+            console.log("[+] BLR X8 命中! taskId=" + currentTaskId + " sendMsgType=" + sendMsgType);
+
+            var autoBuffer = this.context.x1;
+            var protoHex = "";
+
+            if (sendMsgType === "text") {
+                protoHex = textProtoHexGlobal;
+            } else if (sendMsgType === "img") {
+                protoHex = imgProtoHexGlobal;
+            } else if (sendMsgType === "video") {
+                protoHex = videoProtoHexGlobal;
+            } else if (sendMsgType === "reply") {
+                protoHex = replyProtoHexGlobal;
+            } else if (sendMsgType === "file") {
+                protoHex = fileProtoHexGlobal;
+            } else if (sendMsgType === "fileupload") {
+                protoHex = fileUploadProtoHexGlobal;
+            } else if (sendMsgType === "voice") {
+                protoHex = voiceProtoHexGlobal;
+            }
+
+            if (!protoHex || protoHex.length === 0) {
+                console.error("[!] protoHex 为空, sendMsgType=" + sendMsgType);
+                return;
+            }
+
+            var finalPayload = hexToByteArray(protoHex);
+            textProtoDataAddr.writeByteArray(finalPayload);
+
+            // 调用 autoBufferWrite(autoBuffer, data, len) 填充 v133
+            nativeAutoBufferWrite(autoBuffer, textProtoDataAddr, finalPayload.length);
+            console.log("[+] autoBufferWrite 调用完成, protobuf长度: " + finalPayload.length);
+
+            // 将 X8 指向 retOneStub，这样 BLR X8 只会返回1，不执行原始逻辑
+            this.context.x8 = retOneStub;
+        }
+    });
 }
 
-setImmediate(patchTextProtoBuf);
 
 function triggerSendTextMessage(taskId, receiver, content, atUser, protoHex, payloadHex) {
-    // console.log("[+] Manual Trigger Started...");
-    if (!taskId || !receiver || !content) {
-        console.error("[!] taskId or Receiver or Content is empty!");
-        return "fail";
-    }
-
-    if (!triggerX0 || !triggerX1Payload) {
-        console.error("[!] triggerX0 或 triggerX1Payload 尚未初始化，请等待 hook 捕获");
-        return "fail";
-    }
-
-    taskIdGlobal = taskId;
-    textProtoHexGlobal = protoHex;
-
-    textMessageAddr.add(0x08).writeU32(taskIdGlobal);
-    sendTextMessageAddr.add(0x20).writeU32(taskIdGlobal);
-
-    // 使用Go传过来的payloadHex
-    const payloadData = hexToByteArray(payloadHex);
-    triggerX1Payload.writeByteArray(payloadData);
-    triggerX1Payload.add(0x18).writePointer(textCgiAddr);
-    triggerX1Payload.add(0xb8).writePointer(triggerX1Payload.add(0xc0));
-    triggerX1Payload.add(0x190).writePointer(triggerX1Payload.add(0x198));
-    sendMsgType = "text"
-
-    const MMStartTask = new NativeFunction(sendFuncAddr, 'int64', ['pointer', 'pointer']);
-
-    // 5. 调用函数
-    try {
-        MMStartTask(triggerX0, triggerX1Payload);
-        return "1";
-    } catch (e) {
-        console.error(`[!] Error trigger  MMStartTask ${sendFuncAddr} with args: (${triggerX0}) (${triggerX1Payload}),   during execution: ` + e);
-        return "fail";
-    }
+    return triggerSendMediaMessage(taskId, "", receiver, protoHex, payloadHex, "text");
 }
 
 function AttachSendFunc() {
@@ -376,38 +543,6 @@ function AttachSendFunc() {
     })
 }
 
-setImmediate(AttachSendFunc);
-
-// 拦截 SendTextProto 编码逻辑，注入自定义 Payload
-function attachSendTextProto() {
-    textProtoX1PayloadAddr = Memory.alloc(3096);
-    console.log("[+] Frida Payload 地址: " + textProtoX1PayloadAddr);
-
-    Interceptor.attach(protobufAddr, {
-        onEnter: function (args) {
-
-            var sp = this.context.sp;
-            var firstValue = sp.readU32();
-            if (firstValue !== taskIdGlobal) {
-                console.log("[+] Protobuf 拦截未命中，跳过...");
-                return;
-            }
-
-            // 使用Go传入的protobuf数据
-            if (!textProtoHexGlobal || textProtoHexGlobal.length === 0) {
-                console.error("[!] textProtoHexGlobal 为空");
-                return;
-            }
-
-            const finalPayload = hexToByteArray(textProtoHexGlobal);
-            textProtoX1PayloadAddr.writeByteArray(finalPayload);
-            this.context.x1 = textProtoX1PayloadAddr;
-            this.context.x2 = ptr(finalPayload.length);
-        },
-    });
-}
-
-setImmediate(attachSendTextProto);
 
 // -------------------------发送文本消息分区-------------------------
 
@@ -439,26 +574,38 @@ function attachReq2buf() {
                 insertMsgAddr.writePointer(sendReplyMessageAddr);
                 console.log("[+] 发送回复消息成功! Req2Buf 已将 X24+0x60 指向新地址: " + sendReplyMessageAddr +
                     "[+] Req2Buf 写入后内存预览: " + insertMsgAddr);
+            } else if (sendMsgType === "voice") {
+                insertMsgAddr.writePointer(sendVoiceMessageAddr);
+                console.log("[+] 发送语音消息成功! Req2Buf 已将 X24+0x60 指向新地址: " + sendVoiceMessageAddr +
+                    "[+] Req2Buf 写入后内存预览: " + insertMsgAddr);
+            } else if (sendMsgType === "file") {
+                insertMsgAddr.writePointer(sendFileMessageAddr);
+                console.log("[+] 发送文件消息成功! Req2Buf 已将 X24+0x60 指向新地址: " + sendFileMessageAddr +
+                    "[+] Req2Buf 写入后内存预览: " + insertMsgAddr);
+            } else if (sendMsgType === "fileupload") {
+                insertMsgAddr.writePointer(sendFileUploadMessageAddr);
+                console.log("[+] 发送fileUploadMsg成功! Req2Buf 已将 X24+0x60 指向新地址: " + sendFileUploadMessageAddr +
+                    "[+] Req2Buf 写入后内存预览: " + insertMsgAddr);
             }
         }
     });
 
-    // 在出口处拦截req2buf，把insertMsgAddr设置为0，避免被垃圾回收导致整个程序崩溃
+    // 在出口处拦截req2buf，记录insertMsgAddr等buf2resp回调后再清理
     Interceptor.attach(req2bufExitAddr, {
         onEnter: function (args) {
             if (!this.context.x25.equals(taskIdGlobal)) {
                 return;
             }
-            insertMsgAddr.writeU64(0x0);
+            // 不立即清除insertMsgAddr，让mars能路由buf2resp回调
+            // 用fakeVtable保护结构体，防止中间被访问时崩溃
+            pendingInsertMsgAddr = insertMsgAddr;
+            pendingSendMsgType = sendMsgType;
+            pendingBuf2RespTaskId = taskIdGlobal;
             taskIdGlobal = 0;
-            send({
-                type: "finish",
-            })
         }
     });
 }
 
-setImmediate(attachReq2buf);
 
 // -------------------------Req2Buf公共部分分区-------------------------
 
@@ -480,7 +627,6 @@ function setupSendImgMessageDynamic() {
     uploadAesKeyAddr = Memory.alloc(256);
     ImagePathAddr1 = Memory.alloc(256);
     uploadImageX1 = Memory.alloc(1024);
-    imgProtoX1PayloadAddr = Memory.alloc(2048);
 
     // 图片数据写入
     patchString(imgCgiAddr, "/cgi-bin/micromsg-bin/uploadmsgimg");
@@ -492,7 +638,7 @@ function setupSendImgMessageDynamic() {
     sendImgMessageAddr.add(0x20).writeU32(taskIdGlobal);
     sendImgMessageAddr.add(0x28).writePointer(imgMessageAddr);
 
-    imgMessageAddr.add(0x00).writePointer(imgMessageCallbackFunc);
+    imgMessageAddr.add(0x00).writePointer(fakeVtable);
     imgMessageAddr.add(0x08).writeU32(taskIdGlobal);
     imgMessageAddr.add(0x0c).writeU32(0x6e);
     imgMessageAddr.add(0x10).writeU64(0x3);
@@ -501,10 +647,6 @@ function setupSendImgMessageDynamic() {
     imgMessageAddr.add(0x28).writeU64(uint64("0x8000000000000030"));
     imgMessageAddr.add(0x30).writeU64(uint64("0x0000000001010100"));
 
-    patchImgProtobufFunc1Byte = patchImgProtobufFunc1.readByteArray(4);
-    patchImgProtobufFunc2Byte = patchImgProtobufFunc2.readByteArray(4);
-    imgProtobufDeleteAddrByte = imgProtobufDeleteAddr.readByteArray(4);
-
     // 视频数据写入
     videoCgiAddr = Memory.alloc(128);
     sendVideoMessageAddr = Memory.alloc(256);
@@ -512,7 +654,6 @@ function setupSendImgMessageDynamic() {
     videoIdAddr = Memory.alloc(256);
     videoPathAddr1 = Memory.alloc(256);
     uploadVideoX1 = Memory.alloc(1024);
-    videoProtoX1PayloadAddr = Memory.alloc(2048);
 
     patchString(videoCgiAddr, "/cgi-bin/micromsg-bin/uploadvideo");
 
@@ -523,7 +664,7 @@ function setupSendImgMessageDynamic() {
     sendVideoMessageAddr.add(0x20).writeU32(taskIdGlobal);
     sendVideoMessageAddr.add(0x28).writePointer(videoMessageAddr);
 
-    videoMessageAddr.add(0x00).writePointer(videoMessageCallbackFunc);
+    videoMessageAddr.add(0x00).writePointer(fakeVtable);
     videoMessageAddr.add(0x08).writeU32(taskIdGlobal);
     videoMessageAddr.add(0x0c).writeU32(0x6e);
     videoMessageAddr.add(0x10).writeU64(0x3);
@@ -532,113 +673,39 @@ function setupSendImgMessageDynamic() {
     videoMessageAddr.add(0x28).writeU64(uint64("0x8000000000000030"));
     videoMessageAddr.add(0x30).writeU64(uint64("0x0000000001010100"));
 
-    patchVideoProtobufFunc1Byte = patchVideoProtobufFunc1.readByteArray(4);
-    patchVideoProtobufFunc2Byte = patchVideoProtobufFunc2.readByteArray(4);
-    videoProtobufDeleteAddrByte = videoProtobufDeleteAddr.readByteArray(4);
+    // 语音数据写入
+    voiceCgiAddr = Memory.alloc(128);
+    sendVoiceMessageAddr = Memory.alloc(256);
+    voiceMessageAddr = Memory.alloc(256);
+    voiceIdAddr = Memory.alloc(256);
+    voicePathAddr1 = Memory.alloc(256);
+    uploadVoiceX1 = Memory.alloc(1024);
+    voiceAudioDataAddr = Memory.alloc(5 * 1024 * 1024); // 预分配5MB
+
+    patchString(voiceCgiAddr, "/cgi-bin/micromsg-bin/uploadvoice");
+
+    sendVoiceMessageAddr.add(0x00).writeU64(0);
+    sendVoiceMessageAddr.add(0x08).writeU64(0);
+    sendVoiceMessageAddr.add(0x10).writeU64(0);
+    sendVoiceMessageAddr.add(0x18).writeU64(1);
+    sendVoiceMessageAddr.add(0x20).writeU32(taskIdGlobal);
+    sendVoiceMessageAddr.add(0x28).writePointer(voiceMessageAddr);
+
+    voiceMessageAddr.add(0x00).writePointer(fakeVtable);
+    voiceMessageAddr.add(0x08).writeU32(taskIdGlobal);
+    voiceMessageAddr.add(0x0c).writeU32(0x6e);
+    voiceMessageAddr.add(0x10).writeU64(0x3);
+    voiceMessageAddr.add(0x18).writePointer(voiceCgiAddr);
+    voiceMessageAddr.add(0x20).writeU64(0x21);
+    voiceMessageAddr.add(0x28).writeU64(uint64("0x8000000000000030"));
+    voiceMessageAddr.add(0x30).writeU64(uint64("0x0000000001010100"));
 }
 
-setImmediate(setupSendImgMessageDynamic);
 
 
-function patchImgProtoBuf() {
-    Interceptor.attach(imageCallbackFuncAddr, {
-        onEnter: function (args) {
-            var firstValue = this.context.sp.add(0x10).readU32();
-            if (firstValue === taskIdGlobal) {
-                if (patchImgProtobufFunc1.readU32() !== 3573751839) {
-                    Memory.patchCode(patchImgProtobufFunc1, 4, code => {
-                        const cw = new Arm64Writer(code, {pc: patchImgProtobufFunc1});
-                        cw.putNop();
-                        cw.flush();
-                    });
-                    Memory.patchCode(patchImgProtobufFunc2, 4, code => {
-                        const cw = new Arm64Writer(code, {pc: patchImgProtobufFunc2});
-                        cw.putNop();
-                        cw.flush();
-                    });
-                    Memory.patchCode(imgProtobufDeleteAddr, 4, code => {
-                        const cw = new Arm64Writer(code, {pc: imgProtobufDeleteAddr});
-                        cw.putNop();
-                        cw.flush();
-                    });
-                }
-            } else {
-                if (patchImgProtobufFunc1.readU32() === 3573751839) {
-                    Memory.patchCode(patchImgProtobufFunc1, 4, code => {
-                        const cw = new Arm64Writer(code, {pc: patchImgProtobufFunc1});
-                        cw.putBytes(new Uint8Array(patchImgProtobufFunc1Byte));
-                        cw.flush();
-                    });
-                    Memory.patchCode(patchImgProtobufFunc2, 4, code => {
-                        const cw = new Arm64Writer(code, {pc: patchImgProtobufFunc2});
-                        cw.putBytes(new Uint8Array(patchImgProtobufFunc2Byte));
-                        cw.flush();
-                    });
-                    Memory.patchCode(imgProtobufDeleteAddr, 4, code => {
-                        const cw = new Arm64Writer(code, {pc: imgProtobufDeleteAddr});
-                        cw.putBytes(new Uint8Array(imgProtobufDeleteAddrByte));
-                        cw.flush();
-                    });
-                }
-
-            }
-        }
-    })
-}
-
-setImmediate(patchImgProtoBuf);
-
-function patchVideoProtoBuf() {
-    Interceptor.attach(videoCallbackFuncAddr, {
-        onEnter: function (args) {
-            var firstValue = this.context.sp.add(0x10).readU32();
-            if (firstValue === taskIdGlobal) {
-                if (patchVideoProtobufFunc1.readU32() !== 3573751839) {
-                    Memory.patchCode(patchVideoProtobufFunc1, 4, code => {
-                        const cw = new Arm64Writer(code, {pc: patchVideoProtobufFunc1});
-                        cw.putNop();
-                        cw.flush();
-                    });
-                    Memory.patchCode(patchVideoProtobufFunc2, 4, code => {
-                        const cw = new Arm64Writer(code, {pc: patchVideoProtobufFunc2});
-                        cw.putNop();
-                        cw.flush();
-                    });
-                    Memory.patchCode(videoProtobufDeleteAddr, 4, code => {
-                        const cw = new Arm64Writer(code, {pc: videoProtobufDeleteAddr});
-                        cw.putNop();
-                        cw.flush();
-                    });
-                }
-            } else {
-                if (patchVideoProtobufFunc1.readU32() === 3573751839) {
-                    Memory.patchCode(patchVideoProtobufFunc1, 4, code => {
-                        const cw = new Arm64Writer(code, {pc: patchVideoProtobufFunc1});
-                        cw.putBytes(new Uint8Array(patchVideoProtobufFunc1Byte));
-                        cw.flush();
-                    });
-                    Memory.patchCode(patchVideoProtobufFunc2, 4, code => {
-                        const cw = new Arm64Writer(code, {pc: patchVideoProtobufFunc2});
-                        cw.putBytes(new Uint8Array(patchVideoProtobufFunc2Byte));
-                        cw.flush();
-                    });
-                    Memory.patchCode(videoProtobufDeleteAddr, 4, code => {
-                        const cw = new Arm64Writer(code, {pc: videoProtobufDeleteAddr});
-                        cw.putBytes(new Uint8Array(videoProtobufDeleteAddrByte));
-                        cw.flush();
-                    });
-                }
-
-            }
-        }
-    })
-}
-
-setImmediate(patchVideoProtoBuf);
-
-function triggerSendImgMessage(taskId, sender, receiver, protoHex, payloadHex) {
-    if (!taskId || !receiver || !sender) {
-        console.error("[!] taskId or receiver or sender is empty!");
+function triggerSendMediaMessage(taskId, sender, receiver, protoHex, payloadHex, msgType) {
+    if (!taskId || !receiver) {
+        console.error("[!] " + msgType + ": taskId or receiver is empty!");
         return "fail";
     }
 
@@ -647,202 +714,107 @@ function triggerSendImgMessage(taskId, sender, receiver, protoHex, payloadHex) {
         return "fail";
     }
 
-    // 保存protobuf hex供attachProto使用
-    imgProtoHexGlobal = protoHex;
+    var msgAddrInfo = {
+        "text":  { messageAddr: textMessageAddr,  sendMessageAddr: sendTextMessageAddr,  cgiAddr: textCgiAddr,  protoHexSetter: function(h) { textProtoHexGlobal = h; } },
+        "img":   { messageAddr: imgMessageAddr,   sendMessageAddr: sendImgMessageAddr,   cgiAddr: imgCgiAddr,   protoHexSetter: function(h) { imgProtoHexGlobal = h; } },
+        "video": { messageAddr: videoMessageAddr, sendMessageAddr: sendVideoMessageAddr, cgiAddr: videoCgiAddr, protoHexSetter: function(h) { videoProtoHexGlobal = h; } },
+        "reply": { messageAddr: replyMessageAddr, sendMessageAddr: sendReplyMessageAddr, cgiAddr: replyCgiAddr, protoHexSetter: function(h) { replyProtoHexGlobal = h; } },
+        "voice": { messageAddr: voiceMessageAddr, sendMessageAddr: sendVoiceMessageAddr, cgiAddr: voiceCgiAddr, protoHexSetter: function(h) { voiceProtoHexGlobal = h; } },
+        "file":  { messageAddr: fileMessageAddr,  sendMessageAddr: sendFileMessageAddr,  cgiAddr: fileCgiAddr,  protoHexSetter: function(h) { fileProtoHexGlobal = h; } },
+        "fileupload": { messageAddr: fileUploadMessageAddr, sendMessageAddr: sendFileUploadMessageAddr, cgiAddr: fileUploadCgiAddr, protoHexSetter: function(h) { fileUploadProtoHexGlobal = h; } },
+    };
 
+    var info = msgAddrInfo[msgType];
+    if (!info) {
+        console.error("[!] unknown msgType: " + msgType);
+        return "fail";
+    }
+
+    info.protoHexSetter(protoHex);
     taskIdGlobal = taskId;
 
-    imgMessageAddr.add(0x08).writeU32(taskIdGlobal);
-    sendImgMessageAddr.add(0x20).writeU32(taskIdGlobal);
+    info.messageAddr.add(0x08).writeU32(taskIdGlobal);
+    info.sendMessageAddr.add(0x20).writeU32(taskIdGlobal);
 
-    // 使用Go传过来的payloadHex
     const payloadData = hexToByteArray(payloadHex);
     triggerX1Payload.writeByteArray(payloadData);
-    triggerX1Payload.add(0x18).writePointer(imgCgiAddr);
+    triggerX1Payload.add(0x18).writePointer(info.cgiAddr);
     triggerX1Payload.add(0xb8).writePointer(triggerX1Payload.add(0xc0));
     triggerX1Payload.add(0x190).writePointer(triggerX1Payload.add(0x198));
-    sendMsgType = "img"
+    sendMsgType = msgType;
 
     const MMStartTask = new NativeFunction(sendFuncAddr, 'int64', ['pointer', 'pointer']);
 
-    // 5. 调用函数
     try {
         MMStartTask(triggerX0, triggerX1Payload);
         return "1";
     } catch (e) {
-        console.error(`[!] Error trigger StartTask ${sendFuncAddr} with args: (${triggerX0}) (${triggerX1Payload}),   during execution: ` + e);
+        console.error("[!] Error trigger " + msgType + " MMStartTask: " + e);
         return "fail";
     }
+}
+
+function triggerSendImgMessage(taskId, sender, receiver, protoHex, payloadHex) {
+    return triggerSendMediaMessage(taskId, sender, receiver, protoHex, payloadHex, "img");
 }
 
 function triggerSendVideoMessage(taskId, sender, receiver, protoHex, payloadHex) {
-    if (!taskId || !receiver || !sender) {
-        console.error("[!] taskId or receiver or sender is empty!");
-        return "fail";
-    }
-
-    if (!triggerX0 || !triggerX1Payload) {
-        console.error("[!] triggerX0 或 triggerX1Payload 尚未初始化，请等待 hook 捕获");
-        return "fail";
-    }
-
-    // 保存protobuf hex供attachProto使用
-    videoProtoHexGlobal = protoHex;
-
-    taskIdGlobal = taskId;
-
-    videoMessageAddr.add(0x08).writeU32(taskIdGlobal);
-    sendVideoMessageAddr.add(0x20).writeU32(taskIdGlobal);
-
-    // 使用Go传过来的payloadHex
-    const payloadData = hexToByteArray(payloadHex);
-    triggerX1Payload.writeByteArray(payloadData);
-    triggerX1Payload.add(0x18).writePointer(videoCgiAddr);
-    triggerX1Payload.add(0xb8).writePointer(triggerX1Payload.add(0xc0));
-    triggerX1Payload.add(0x190).writePointer(triggerX1Payload.add(0x198));
-    sendMsgType = "video"
-
-    const MMStartTask = new NativeFunction(sendFuncAddr, 'int64', ['pointer', 'pointer']);
-
-    // 5. 调用函数
-    try {
-        MMStartTask(triggerX0, triggerX1Payload);
-        return "1";
-    } catch (e) {
-        console.error(`[!] Error trigger StartTask ${sendFuncAddr} with args: (${triggerX0}) (${triggerX1Payload}),   during execution: ` + e);
-        return "fail";
-    }
+    return triggerSendMediaMessage(taskId, sender, receiver, protoHex, payloadHex, "video");
 }
-
-
-// 拦截 Protobuf 编码逻辑，注入自定义 Payload
-function attachProto() {
-    Interceptor.attach(imgProtobufAddr, {
-        onEnter: function (args) {
-            var currTaskId = this.context.sp.add(0x30).readU32();
-            if (currTaskId !== taskIdGlobal) {
-                console.log(`[+] 拦截到非目标 currTaskId: ${currTaskId} taskIdGlobal: ${taskIdGlobal}`);
-                return;
-            }
-
-            if (!imgProtoHexGlobal || imgProtoHexGlobal.length === 0) {
-                console.error("[!] imgProtoHexGlobal 为空");
-                return;
-            }
-
-            const finalPayload = hexToByteArray(imgProtoHexGlobal);
-            imgProtoX1PayloadAddr.writeByteArray(finalPayload);
-
-            this.context.x1 = imgProtoX1PayloadAddr;
-            this.context.x2 = ptr(finalPayload.length);
-        },
-    });
-
-    Interceptor.attach(videoProtobufAddr, {
-        onEnter: function (args) {
-
-            var currTaskId = this.context.sp.add(0x30).readU32();
-            if (currTaskId !== taskIdGlobal) {
-                return;
-            }
-
-            if (!videoProtoHexGlobal || videoProtoHexGlobal.length === 0) {
-                console.error("[!] videoProtoHexGlobal 为空");
-                return;
-            }
-
-            const finalPayload = hexToByteArray(videoProtoHexGlobal);
-            videoProtoX1PayloadAddr.writeByteArray(finalPayload);
-
-            this.context.x1 = videoProtoX1PayloadAddr;
-            this.context.x2 = ptr(finalPayload.length);
-        },
-    });
-}
-
-setImmediate(attachProto);
 
 
 function triggerUploadImg(receiver, md5, imagePath, payloadHex) {
-    if (uploadGlobalX0.equals(ptr(0))) {
-        console.error("[!] uploadGlobalX0 尚未初始化，请等待 hook 捕获");
-        return "fail";
-    }
-
-    // 使用Go传过来的payloadHex
-    const payload = hexToByteArray(payloadHex);
-
-    patchString(imageIdAddr, receiver + "_" + String(Math.floor(Date.now() / 1000)) + "_" + Math.floor(Math.random() * 1001) + "_1");
-    patchString(md5Addr, md5)
-    patchString(uploadAesKeyAddr, generateAESKey())
-    patchString(ImagePathAddr1, imagePath);
-
-    uploadImageX1.writeByteArray(payload);
-    uploadImageX1.writePointer(uploadFunc1Addr);
-    uploadImageX1.add(0x08).writePointer(uploadFunc2Addr);
-    uploadImageX1.add(0x48).writePointer(imageIdAddr);
-    uploadImageX1.add(0x68).writeUtf8String(receiver);
-    uploadImageX1.add(0xa8).writePointer(md5Addr);
-    uploadImageX1.add(0xe8).writePointer(ImagePathAddr1);
-    uploadImageX1.add(0x118).writePointer(ImagePathAddr1);
-    uploadImageX1.add(0x148).writePointer(ImagePathAddr1);
-    uploadImageX1.add(0x200).writePointer(uploadAesKeyAddr);
-
-    const startUploadMedia = new NativeFunction(uploadImageAddr, 'int64', ['pointer', 'pointer']);
-
-    console.log(`[+] triggerUploadImg X0: ${uploadGlobalX0}`);
-    return startUploadMedia(uploadGlobalX0, uploadImageX1);
+    return fillUploadX1AndStart(imageIdAddr, ImagePathAddr1, uploadImageX1, receiver, md5, imagePath, payloadHex);
 }
 
 function triggerUploadVideo(receiver, md5, videoPath, payloadHex) {
+    return fillUploadX1AndStart(videoIdAddr, videoPathAddr1, uploadVideoX1, receiver, md5, videoPath, payloadHex);
+}
+
+function triggerUploadVoice(receiver, voicePath, payloadHex, audioDataHex, durationMs) {
     if (uploadGlobalX0.equals(ptr(0))) {
         console.error("[!] uploadGlobalX0 尚未初始化，请等待 hook 捕获");
         return "fail";
     }
 
+    voiceDurationGlobal = durationMs;
     const payload = hexToByteArray(payloadHex);
 
-    patchString(videoIdAddr, receiver + "_" + String(Math.floor(Date.now() / 1000)) + "_" + Math.floor(Math.random() * 1001) + "_1");
-    patchString(md5Addr, md5)
-    patchString(uploadAesKeyAddr, generateAESKey())
-    patchString(videoPathAddr1, videoPath);
+    // 解码音频二进制数据，写入预分配的5MB内存
+    const audioBytes = hexToByteArray(audioDataHex);
+    const audioLen = audioBytes.length;
+    voiceSilkDataLenGlobal = audioLen;
+    voiceAudioDataAddr.writeByteArray(audioBytes);
 
-    uploadVideoX1.writeByteArray(payload);
-    uploadVideoX1.writePointer(uploadFunc1Addr);
-    uploadVideoX1.add(0x08).writePointer(uploadFunc2Addr);
-    uploadVideoX1.add(0x48).writePointer(videoIdAddr);
-    uploadVideoX1.add(0x68).writeUtf8String(receiver);
-    uploadVideoX1.add(0xa8).writePointer(md5Addr);
-    uploadVideoX1.add(0xe8).writePointer(videoPathAddr1);
-    uploadVideoX1.add(0x118).writePointer(videoPathAddr1);
-    uploadVideoX1.add(0x148).writePointer(videoPathAddr1);
-    uploadVideoX1.add(0x200).writePointer(uploadAesKeyAddr);
+    const voiceIdStr = receiver + "_" + String(Math.floor(Date.now() / 1000)) + "_" + Math.floor(Math.random() * 1001) + "_1";
+    patchString(voiceIdAddr, voiceIdStr);
+    patchString(voicePathAddr1, voicePath);
+
+    uploadVoiceX1.writeByteArray(payload);
+    uploadVoiceX1.writePointer(uploadFunc1Addr);
+    uploadVoiceX1.add(0x08).writePointer(uploadFunc2Addr);
+    uploadVoiceX1.add(0x48).writePointer(voiceIdAddr);
+    uploadVoiceX1.add(0x50).writeU64(voiceIdStr.length);
+    uploadVoiceX1.add(0x58).writeU64(uint64("0x8000000000000000").add(voiceIdStr.length + 1));
+    uploadVoiceX1.add(0x68).writeUtf8String(receiver);
+    // 音频二进制数据: 0x100=指针, 0x108=长度, 0x110=容量(长度+1)|高位
+    uploadVoiceX1.add(0x100).writePointer(voiceAudioDataAddr);
+    uploadVoiceX1.add(0x108).writeU64(audioLen);
+    uploadVoiceX1.add(0x110).writeU64(uint64("0x8000000000000000").add(audioLen + 1));
 
     const startUploadMedia = new NativeFunction(uploadImageAddr, 'int64', ['pointer', 'pointer']);
 
-    return startUploadMedia(uploadGlobalX0, uploadVideoX1);
+    return startUploadMedia(uploadGlobalX0, uploadVoiceX1);
 }
 
 function attachUploadMedia() {
     Interceptor.attach(uploadImageAddr.add(0x10), {
         onEnter: function (args) {
-            try {
-                uploadGlobalX0 = this.context.x0;
-                const selfId = this.context.x1.add(0x68).readUtf8String();
-                const filePath = this.context.x1.add(0xe8).readPointer().readUtf8String();
-                send({
-                    type: "upload",
-                    self_id: selfId,
-                })
-            } catch (e) {
-                console.error("[-] attachUploadMedia error: " + e);
-                uploadGlobalX0 = this.context.x0;
-            }
-        }
+			uploadGlobalX0 = this.context.x0;
+		}
     })
 }
 
-setImmediate(attachUploadMedia);
 
 
 function patchCdnOnComplete() {
@@ -854,9 +826,11 @@ function patchCdnOnComplete() {
                 const currentFileId = x2.add(0x20).readPointer().readUtf8String();
                 const imageFileId = imageIdAddr.readUtf8String();
                 const videoFileId = videoIdAddr.readUtf8String();
-                if (currentFileId !== imageFileId && currentFileId !== videoFileId) {
+                const voiceFileId = voiceIdAddr.readUtf8String();
+                const fileUploadFileId = uploadFileIdAddr.readUtf8String();
+                if (currentFileId !== imageFileId && currentFileId !== videoFileId && currentFileId !== voiceFileId && currentFileId !== fileUploadFileId) {
                     console.log("[-] CndOnComplete x2: " + x2 + " currentFileId: " + currentFileId +
-                        " imageFileId: " + imageFileId + " videoFileId:" + videoFileId);
+                        " imageFileId: " + imageFileId + " videoFileId:" + videoFileId + " voiceFileId:" + voiceFileId + " fileUploadFileId:" + fileUploadFileId);
                     return;
                 }
 
@@ -866,15 +840,35 @@ function patchCdnOnComplete() {
                 const videoId = x2.add(0xf0).readPointer().readUtf8String();
                 const targetId = x2.add(0x40).readUtf8String();
 
-                send({
-                    type: "finish",
-                });
+                console.log("cndOnComplete x2: " + x2 + " cdnKey: " + cdnKey + " aesKey: " + aesKey + " md5Key: " + md5Key + " videoId: " + videoId + " targetId: " + targetId);
 
-                if (cdnKey !== "" && cdnKey != null && aesKey !== "" && aesKey != null &&
-                    md5Key !== "" && md5Key != null) {
+                if (cdnKey !== "" && cdnKey != null && aesKey !== "" && aesKey != null) {
 
-                    // 判断是图片还是视频，存入对应队列
-                    if (videoId !== null && videoId !== "") {
+                    // 判断是语音、视频、文件还是图片
+                    if (currentFileId === voiceFileId) {
+                        // 语音
+                        send({
+                            type: "upload_voice_finish",
+                            target_id: targetId,
+                            cdn_key: cdnKey,
+                            aes_key: aesKey,
+                            voice_duration: voiceDurationGlobal,
+                            silk_data_len: voiceSilkDataLenGlobal
+                        });
+                    } else if (currentFileId === fileUploadFileId) {
+                        // 文件
+                        var attachId = "@cdn_" + cdnKey + "_" + aesKey + "_1";
+                        send({
+                            type: "upload_file_finish",
+                            target_id: targetId,
+                            cdn_key: cdnKey,
+                            aes_key: aesKey,
+                            md5_key: md5Key,
+                            attach_id: attachId,
+                            file_upload_token: "",
+                            overwrite_msg_id: ""
+                        });
+                    } else if (currentFileId === videoFileId) {
                         // 视频
                         send({
                             type: "upload_video_finish",
@@ -895,7 +889,7 @@ function patchCdnOnComplete() {
                         });
                     }
                 } else {
-                    console.error("cdnKey or aesKey or md5key 为空");
+                    console.error("cdnKey or aesKey 为空");
                 }
             } catch (e) {
                 console.error("[-] CdnOnComplete error: " + e);
@@ -904,7 +898,6 @@ function patchCdnOnComplete() {
     });
 }
 
-setImmediate(patchCdnOnComplete)
 
 function attachGetCallbackFromWrapper() {
     Interceptor.attach(uploadGetCallbackWrapperAddr, {
@@ -912,9 +905,11 @@ function attachGetCallbackFromWrapper() {
             try {
                 const tmpFileId = this.context.x1.readPointer().readUtf8String();
                 const imageFileId = imageIdAddr.readUtf8String();
-                const videoFileId = videoIdAddr.readUtf8String()
-                if (tmpFileId !== imageFileId && tmpFileId !== videoFileId) {
-                    console.log("[+] GetCallbackFromWrapper tmpFileId: " + tmpFileId + " imageFileId: " + imageFileId + " videoFileId:" + videoFileId);
+                const videoFileId = videoIdAddr.readUtf8String();
+                const voiceFileId = voiceIdAddr.readUtf8String();
+                const fileUploadFileId = uploadFileIdAddr.readUtf8String();
+                if (tmpFileId !== imageFileId && tmpFileId !== videoFileId && tmpFileId !== voiceFileId && tmpFileId !== fileUploadFileId) {
+                    console.log("[+] GetCallbackFromWrapper tmpFileId: " + tmpFileId + " imageFileId: " + imageFileId + " videoFileId:" + videoFileId + " voiceFileId:" + voiceFileId + " fileUploadFileId:" + fileUploadFileId);
                     return
                 }
 
@@ -931,9 +926,11 @@ function attachGetCallbackFromWrapper() {
             try {
                 const tmpFileId = this.context.x1.readPointer().readUtf8String();
                 const imageFileId = imageIdAddr.readUtf8String();
-                const videoFileId = videoIdAddr.readUtf8String()
-                if (tmpFileId !== imageFileId && tmpFileId !== videoFileId) {
-                    console.log("[+] OnComplete tmpFileId: " + tmpFileId + " imageFileId: " + imageFileId + " videoFileId:" + videoFileId);
+                const videoFileId = videoIdAddr.readUtf8String();
+                const voiceFileId = voiceIdAddr.readUtf8String();
+                const fileUploadFileId = uploadFileIdAddr.readUtf8String();
+                if (tmpFileId !== imageFileId && tmpFileId !== videoFileId && tmpFileId !== voiceFileId && tmpFileId !== fileUploadFileId) {
+                    console.log("[+] OnComplete tmpFileId: " + tmpFileId + " imageFileId: " + imageFileId + " videoFileId:" + videoFileId + " voiceFileId:" + voiceFileId + " fileUploadFileId:" + fileUploadFileId);
                     return
                 }
 
@@ -946,14 +943,12 @@ function attachGetCallbackFromWrapper() {
     })
 }
 
-setImmediate(attachGetCallbackFromWrapper);
 
 // -------------------------发送回复消息分区-------------------------
 function setupSendReplyMessageDynamic() {
     replyCgiAddr = Memory.alloc(128);
     sendReplyMessageAddr = Memory.alloc(256);
     replyMessageAddr = Memory.alloc(256);
-    replyProtoX1PayloadAddr = Memory.alloc(4096);
 
     patchString(replyCgiAddr, "/cgi-bin/micromsg-bin/sendappmsg");
 
@@ -964,131 +959,30 @@ function setupSendReplyMessageDynamic() {
     sendReplyMessageAddr.add(0x20).writeU32(taskIdGlobal);
     sendReplyMessageAddr.add(0x28).writePointer(replyMessageAddr);
 
-    replyMessageAddr.add(0x00).writePointer(replyMessageCallbackFunc);
+    replyMessageAddr.add(0x00).writePointer(fakeVtable);
     replyMessageAddr.add(0x08).writeU32(taskIdGlobal);
     replyMessageAddr.add(0x0c).writeU32(0x6e);
     replyMessageAddr.add(0x10).writeU64(0x3);
     replyMessageAddr.add(0x18).writePointer(replyCgiAddr);
-    replyMessageAddr.add(0x20).writeU64(0x22);
+    replyMessageAddr.add(0x20).writeU64(0x20);
     replyMessageAddr.add(0x28).writeU64(uint64("0x8000000000000030"));
     replyMessageAddr.add(0x30).writeU64(uint64("0x0000000001010100"));
-
-    patchReplyProtobufFunc1Byte = patchReplyProtobufFunc1.readByteArray(4);
-    patchReplyProtobufFunc2Byte = patchReplyProtobufFunc2.readByteArray(4);
-    replyProtobufDeleteAddrByte = replyProtobufDeleteAddr.readByteArray(4);
 
     console.log("[+] Reply message setup complete. CgiAddr: " + replyCgiAddr + " SendAddr: " + sendReplyMessageAddr);
 }
 
-setImmediate(setupSendReplyMessageDynamic);
-
-function patchReplyProtoBuf() {
-    Interceptor.attach(replyCallbackFuncAddr, {
-        onEnter: function (args) {
-            var firstValue = this.context.sp.add(0x10).readU32();
-            if (firstValue === taskIdGlobal) {
-                if (patchReplyProtobufFunc1.readU32() !== 3573751839) {
-                    Memory.patchCode(patchReplyProtobufFunc1, 4, code => {
-                        const cw = new Arm64Writer(code, {pc: patchReplyProtobufFunc1});
-                        cw.putNop();
-                        cw.flush();
-                    });
-                    Memory.patchCode(patchReplyProtobufFunc2, 4, code => {
-                        const cw = new Arm64Writer(code, {pc: patchReplyProtobufFunc2});
-                        cw.putNop();
-                        cw.flush();
-                    });
-                    Memory.patchCode(replyProtobufDeleteAddr, 4, code => {
-                        const cw = new Arm64Writer(code, {pc: replyProtobufDeleteAddr});
-                        cw.putNop();
-                        cw.flush();
-                    });
-                }
-            } else {
-                if (patchReplyProtobufFunc1.readU32() === 3573751839) {
-                    Memory.patchCode(patchReplyProtobufFunc1, 4, code => {
-                        const cw = new Arm64Writer(code, {pc: patchReplyProtobufFunc1});
-                        cw.putBytes(new Uint8Array(patchReplyProtobufFunc1Byte));
-                        cw.flush();
-                    });
-                    Memory.patchCode(patchReplyProtobufFunc2, 4, code => {
-                        const cw = new Arm64Writer(code, {pc: patchReplyProtobufFunc2});
-                        cw.putBytes(new Uint8Array(patchReplyProtobufFunc2Byte));
-                        cw.flush();
-                    });
-                    Memory.patchCode(replyProtobufDeleteAddr, 4, code => {
-                        const cw = new Arm64Writer(code, {pc: replyProtobufDeleteAddr});
-                        cw.putBytes(new Uint8Array(replyProtobufDeleteAddrByte));
-                        cw.flush();
-                    });
-                }
-            }
-        }
-    })
-}
-
-setImmediate(patchReplyProtoBuf);
-
-function attachReplyProto() {
-    Interceptor.attach(replyProtobufAddr, {
-        onEnter: function (args) {
-            var currTaskId = this.context.sp.add(0x30).readU32();
-            if (currTaskId !== taskIdGlobal) {
-                return;
-            }
-
-            if (!replyProtoHexGlobal || replyProtoHexGlobal.length === 0) {
-                console.error("[!] replyProtoHexGlobal 为空");
-                return;
-            }
-
-            const finalPayload = hexToByteArray(replyProtoHexGlobal);
-            replyProtoX1PayloadAddr.writeByteArray(finalPayload);
-            this.context.x1 = replyProtoX1PayloadAddr;
-            this.context.x2 = ptr(finalPayload.length);
-            console.log("[+] Reply protobuf注入完成, length=" + finalPayload.length);
-        },
-    });
-}
-
-setImmediate(attachReplyProto);
 
 function triggerSendReplyMessage(taskId, sender, receiver, protoHex, payloadHex) {
-    if (!taskId || !receiver || !sender) {
-        console.error("[!] reply: taskId or receiver or sender is empty!");
-        return "fail";
-    }
-
-    if (!triggerX0 || !triggerX1Payload) {
-        console.error("[!] triggerX0 或 triggerX1Payload 尚未初始化，请等待 hook 捕获");
-        return "fail";
-    }
-
-    replyProtoHexGlobal = protoHex;
-    taskIdGlobal = taskId;
-
-    replyMessageAddr.add(0x08).writeU32(taskIdGlobal);
-    sendReplyMessageAddr.add(0x20).writeU32(taskIdGlobal);
-
-    const payloadData = hexToByteArray(payloadHex);
-    triggerX1Payload.writeByteArray(payloadData);
-    triggerX1Payload.add(0x18).writePointer(replyCgiAddr);
-    triggerX1Payload.add(0xb8).writePointer(triggerX1Payload.add(0xc0));
-    triggerX1Payload.add(0x190).writePointer(triggerX1Payload.add(0x198));
-    sendMsgType = "reply"
-
-    const MMStartTask = new NativeFunction(sendFuncAddr, 'int64', ['pointer', 'pointer']);
-
-    try {
-        MMStartTask(triggerX0, triggerX1Payload);
-        return "1";
-    } catch (e) {
-        console.error("[!] Error trigger reply MMStartTask: " + e);
-        return "fail";
-    }
+    return triggerSendMediaMessage(taskId, sender, receiver, protoHex, payloadHex, "reply");
 }
 
 // -------------------------发送回复消息分区-------------------------
+
+// -------------------------发送语音消息分区-------------------------
+function triggerSendVoiceMessage(taskId, sender, receiver, protoHex, payloadHex) {
+    return triggerSendMediaMessage(taskId, sender, receiver, protoHex, payloadHex, "voice");
+}
+// -------------------------发送语音消息分区-------------------------
 
 rpc.exports = {
     triggerSendImgMessage: triggerSendImgMessage,
@@ -1098,6 +992,11 @@ rpc.exports = {
     triggerUploadVideo: triggerUploadVideo,
     triggerSendVideoMessage: triggerSendVideoMessage,
     triggerSendReplyMessage: triggerSendReplyMessage,
+    triggerUploadVoice: triggerUploadVoice,
+    triggerSendVoiceMessage: triggerSendVoiceMessage,
+    triggerSendFileMessage: triggerSendFileMessage,
+    triggerSendFileUploadMessage: triggerSendFileUploadMessage,
+    triggerUploadFile: triggerUploadFile,
 };
 
 // -------------------------发送图片消息分区-------------------------
@@ -1106,45 +1005,58 @@ rpc.exports = {
 function setupDownloadFileDynamic() {
     downloadFileX1 = Memory.alloc(1624)
     fileIdAddr = Memory.alloc(128)
-    fileMd5Addr = Memory.alloc(128)
     downloadAesKeyAddr = Memory.alloc(128)
     filePathAddr = Memory.alloc(256)
     fileCdnUrlAddr = Memory.alloc(256)
 
 }
 
-setImmediate(setupDownloadFileDynamic)
 
 function setReceiver() {
     Interceptor.attach(buf2RespAddr, {
         onEnter: function (args) {
-            const currentPtr = this.context.x20;
+            // 通过 SP+0x140 读取当前 buf2resp 对应的 taskId
+            var respTaskId = this.context.sp.add(0x140).readS32();
+			const currentPtr = this.context.x20;
+			const x2 = this.context.x0.toInt32();
             if (!isReadablePointer(currentPtr)) {
                 return;
             }
-            if (currentPtr.add(0).readU8() !== 0x08) {
-                return
-            }
 
-            const x2 = this.context.x0.toInt32();
-            if (x2 < 4 || x2 > MAX_PROTOBUF_MSG_BYTES) {
-                console.warn("[skip] protobuf_msg length out of range: " + x2);
+            // 判断是否是我们发送的消息的 ack
+            if (pendingBuf2RespTaskId !== 0 && respTaskId === pendingBuf2RespTaskId) {
+                // 清理 insertMsgAddr
+                if (!pendingInsertMsgAddr.isNull()) {
+                    pendingInsertMsgAddr.writeU64(0x0);
+                    console.log("[+] buf2resp: 已清理 insertMsgAddr, msgType=" + pendingSendMsgType + " taskId=" + respTaskId);
+                    pendingInsertMsgAddr = ptr(0);
+                }
+
+                // 读取响应数据
+				var respData = x2 >= 4 && x2 <= MAX_FRIDA_MESSAGE_BYTES ? readByteArrayIfReadable(currentPtr, x2) : null;
+				if (respData) {
+					var bytes = new Uint8Array(respData);
+					console.log("[+] buf2resp: 收到响应, msgType=" + pendingSendMsgType + " taskId=" + respTaskId + " len=" + x2);
+					send({
+						type: "buf2resp",
+						msg_type: pendingSendMsgType,
+						data: Array.from(bytes),
+					});
+				}
+
+				pendingBuf2RespTaskId = 0;
+				pendingSendMsgType = "";
                 return;
             }
-            // console.log(" [+] currentPtr: ", hexdump(currentPtr, {
-            //     offset: 0,
-            //     length: x2,
-            //     header: true,
-            //     ansi: true
-            // }));
 
-            // 过滤非聊天消息:
-            // 1. field 2 是 varint (tag=0x10) 而非嵌套 message (tag=0x12) → 同步/通知消息
+            if (x2 < 4 || x2 > MAX_FRIDA_MESSAGE_BYTES) {
+                return;
+            }
+
             // 2. field 2 wrapper长度 < 128 (单字节varint) → wrapper内容过小,非聊天消息
             if (currentPtr.add(2).readU8() === 0x10 || currentPtr.add(2).readU8() === 0x16 || (currentPtr.add(3).readU8() & 0x80) === 0) {
                 return;
             }
-
             const mem = readByteArrayIfReadable(currentPtr, x2);
             if (!mem) return;
             const uint8Array = new Uint8Array(mem);
@@ -1210,7 +1122,6 @@ function setReceiver() {
     });
 }
 
-setImmediate(setReceiver)
 
 // fileType:  HdImage => 1,Image => 2, thumbImage => 3, Video => 4, File => 5,
 function triggerDownload(receiver, cdnUrl, aesKey, filePath, fileType) {

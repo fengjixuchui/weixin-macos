@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v3.5.1
-// source: proto/wxproto/video_msg.proto
+// source: video_msg.proto
 
 package wxproto
 
@@ -63,7 +63,7 @@ type WxSendVideoMsg struct {
 
 func (x *WxSendVideoMsg) Reset() {
 	*x = WxSendVideoMsg{}
-	mi := &file_proto_wxproto_video_msg_proto_msgTypes[0]
+	mi := &file_video_msg_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -75,7 +75,7 @@ func (x *WxSendVideoMsg) String() string {
 func (*WxSendVideoMsg) ProtoMessage() {}
 
 func (x *WxSendVideoMsg) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_wxproto_video_msg_proto_msgTypes[0]
+	mi := &file_video_msg_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -88,7 +88,7 @@ func (x *WxSendVideoMsg) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WxSendVideoMsg.ProtoReflect.Descriptor instead.
 func (*WxSendVideoMsg) Descriptor() ([]byte, []int) {
-	return file_proto_wxproto_video_msg_proto_rawDescGZIP(), []int{0}
+	return file_video_msg_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *WxSendVideoMsg) GetHeader() *VideoMsgHeader {
@@ -304,18 +304,18 @@ func (x *WxSendVideoMsg) GetVideoSize3() int32 {
 type VideoMsgHeader struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Flag          []byte                 `protobuf:"bytes,1,opt,name=flag,proto3" json:"flag,omitempty"`
-	MsgId         int64                  `protobuf:"varint,2,opt,name=msg_id,json=msgId,proto3" json:"msg_id,omitempty"`
+	SessionId     int64                  `protobuf:"varint,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	ClientProof   []byte                 `protobuf:"bytes,3,opt,name=client_proof,json=clientProof,proto3" json:"client_proof,omitempty"`
-	Unknown4      int64                  `protobuf:"varint,4,opt,name=unknown4,proto3" json:"unknown4,omitempty"`
-	SysInfo       []byte                 `protobuf:"bytes,5,opt,name=sys_info,json=sysInfo,proto3" json:"sys_info,omitempty"`
-	Unknown6      int32                  `protobuf:"varint,6,opt,name=unknown6,proto3" json:"unknown6,omitempty"`
+	DeviceId      int64                  `protobuf:"varint,4,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
+	Platform      []byte                 `protobuf:"bytes,5,opt,name=platform,proto3" json:"platform,omitempty"`
+	Version       int32                  `protobuf:"varint,6,opt,name=version,proto3" json:"version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *VideoMsgHeader) Reset() {
 	*x = VideoMsgHeader{}
-	mi := &file_proto_wxproto_video_msg_proto_msgTypes[1]
+	mi := &file_video_msg_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -327,7 +327,7 @@ func (x *VideoMsgHeader) String() string {
 func (*VideoMsgHeader) ProtoMessage() {}
 
 func (x *VideoMsgHeader) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_wxproto_video_msg_proto_msgTypes[1]
+	mi := &file_video_msg_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -340,7 +340,7 @@ func (x *VideoMsgHeader) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VideoMsgHeader.ProtoReflect.Descriptor instead.
 func (*VideoMsgHeader) Descriptor() ([]byte, []int) {
-	return file_proto_wxproto_video_msg_proto_rawDescGZIP(), []int{1}
+	return file_video_msg_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *VideoMsgHeader) GetFlag() []byte {
@@ -350,9 +350,9 @@ func (x *VideoMsgHeader) GetFlag() []byte {
 	return nil
 }
 
-func (x *VideoMsgHeader) GetMsgId() int64 {
+func (x *VideoMsgHeader) GetSessionId() int64 {
 	if x != nil {
-		return x.MsgId
+		return x.SessionId
 	}
 	return 0
 }
@@ -364,23 +364,23 @@ func (x *VideoMsgHeader) GetClientProof() []byte {
 	return nil
 }
 
-func (x *VideoMsgHeader) GetUnknown4() int64 {
+func (x *VideoMsgHeader) GetDeviceId() int64 {
 	if x != nil {
-		return x.Unknown4
+		return x.DeviceId
 	}
 	return 0
 }
 
-func (x *VideoMsgHeader) GetSysInfo() []byte {
+func (x *VideoMsgHeader) GetPlatform() []byte {
 	if x != nil {
-		return x.SysInfo
+		return x.Platform
 	}
 	return nil
 }
 
-func (x *VideoMsgHeader) GetUnknown6() int32 {
+func (x *VideoMsgHeader) GetVersion() int32 {
 	if x != nil {
-		return x.Unknown6
+		return x.Version
 	}
 	return 0
 }
@@ -395,7 +395,7 @@ type VideoMsgExtra struct {
 
 func (x *VideoMsgExtra) Reset() {
 	*x = VideoMsgExtra{}
-	mi := &file_proto_wxproto_video_msg_proto_msgTypes[2]
+	mi := &file_video_msg_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -407,7 +407,7 @@ func (x *VideoMsgExtra) String() string {
 func (*VideoMsgExtra) ProtoMessage() {}
 
 func (x *VideoMsgExtra) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_wxproto_video_msg_proto_msgTypes[2]
+	mi := &file_video_msg_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -420,7 +420,7 @@ func (x *VideoMsgExtra) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VideoMsgExtra.ProtoReflect.Descriptor instead.
 func (*VideoMsgExtra) Descriptor() ([]byte, []int) {
-	return file_proto_wxproto_video_msg_proto_rawDescGZIP(), []int{2}
+	return file_video_msg_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *VideoMsgExtra) GetField1() int32 {
@@ -437,11 +437,11 @@ func (x *VideoMsgExtra) GetField2() []byte {
 	return nil
 }
 
-var File_proto_wxproto_video_msg_proto protoreflect.FileDescriptor
+var File_video_msg_proto protoreflect.FileDescriptor
 
-const file_proto_wxproto_video_msg_proto_rawDesc = "" +
+const file_video_msg_proto_rawDesc = "" +
 	"\n" +
-	"\x1dproto/wxproto/video_msg.proto\x12\awxproto\"\xa7\a\n" +
+	"\x0fvideo_msg.proto\x12\awxproto\"\xa7\a\n" +
 	"\x0eWxSendVideoMsg\x12/\n" +
 	"\x06header\x18\x01 \x01(\v2\x17.wxproto.VideoMsgHeaderR\x06header\x12\"\n" +
 	"\rclient_msg_id\x18\x02 \x01(\fR\vclientMsgId\x12\x16\n" +
@@ -476,37 +476,38 @@ const file_proto_wxproto_video_msg_proto_rawDesc = "" +
 	"\bcdn_key3\x181 \x01(\fR\acdnKey3\x12\x19\n" +
 	"\baes_key3\x182 \x01(\fR\aaesKey3\x12\x1f\n" +
 	"\vvideo_size3\x183 \x01(\x05R\n" +
-	"videoSize3\"\xb1\x01\n" +
+	"videoSize3\"\xb9\x01\n" +
 	"\x0eVideoMsgHeader\x12\x12\n" +
-	"\x04flag\x18\x01 \x01(\fR\x04flag\x12\x15\n" +
-	"\x06msg_id\x18\x02 \x01(\x03R\x05msgId\x12!\n" +
-	"\fclient_proof\x18\x03 \x01(\fR\vclientProof\x12\x1a\n" +
-	"\bunknown4\x18\x04 \x01(\x03R\bunknown4\x12\x19\n" +
-	"\bsys_info\x18\x05 \x01(\fR\asysInfo\x12\x1a\n" +
-	"\bunknown6\x18\x06 \x01(\x05R\bunknown6\"?\n" +
+	"\x04flag\x18\x01 \x01(\fR\x04flag\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x02 \x01(\x03R\tsessionId\x12!\n" +
+	"\fclient_proof\x18\x03 \x01(\fR\vclientProof\x12\x1b\n" +
+	"\tdevice_id\x18\x04 \x01(\x03R\bdeviceId\x12\x1a\n" +
+	"\bplatform\x18\x05 \x01(\fR\bplatform\x12\x18\n" +
+	"\aversion\x18\x06 \x01(\x05R\aversion\"?\n" +
 	"\rVideoMsgExtra\x12\x16\n" +
 	"\x06field1\x18\x01 \x01(\x05R\x06field1\x12\x16\n" +
-	"\x06field2\x18\x02 \x01(\fR\x06field2B>Z<github.com/yincongcyincong/weixin-macos/onebot/proto/wxprotob\x06proto3"
+	"\x06field2\x18\x02 \x01(\fR\x06field2B>Z<github.com/yincongcyincong/weixin-macos/onebot/proto;wxprotob\x06proto3"
 
 var (
-	file_proto_wxproto_video_msg_proto_rawDescOnce sync.Once
-	file_proto_wxproto_video_msg_proto_rawDescData []byte
+	file_video_msg_proto_rawDescOnce sync.Once
+	file_video_msg_proto_rawDescData []byte
 )
 
-func file_proto_wxproto_video_msg_proto_rawDescGZIP() []byte {
-	file_proto_wxproto_video_msg_proto_rawDescOnce.Do(func() {
-		file_proto_wxproto_video_msg_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_proto_wxproto_video_msg_proto_rawDesc), len(file_proto_wxproto_video_msg_proto_rawDesc)))
+func file_video_msg_proto_rawDescGZIP() []byte {
+	file_video_msg_proto_rawDescOnce.Do(func() {
+		file_video_msg_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_video_msg_proto_rawDesc), len(file_video_msg_proto_rawDesc)))
 	})
-	return file_proto_wxproto_video_msg_proto_rawDescData
+	return file_video_msg_proto_rawDescData
 }
 
-var file_proto_wxproto_video_msg_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
-var file_proto_wxproto_video_msg_proto_goTypes = []any{
+var file_video_msg_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_video_msg_proto_goTypes = []any{
 	(*WxSendVideoMsg)(nil), // 0: wxproto.WxSendVideoMsg
 	(*VideoMsgHeader)(nil), // 1: wxproto.VideoMsgHeader
 	(*VideoMsgExtra)(nil),  // 2: wxproto.VideoMsgExtra
 }
-var file_proto_wxproto_video_msg_proto_depIdxs = []int32{
+var file_video_msg_proto_depIdxs = []int32{
 	1, // 0: wxproto.WxSendVideoMsg.header:type_name -> wxproto.VideoMsgHeader
 	2, // 1: wxproto.WxSendVideoMsg.unknown7:type_name -> wxproto.VideoMsgExtra
 	2, // 2: wxproto.WxSendVideoMsg.unknown10:type_name -> wxproto.VideoMsgExtra
@@ -517,26 +518,26 @@ var file_proto_wxproto_video_msg_proto_depIdxs = []int32{
 	0, // [0:3] is the sub-list for field type_name
 }
 
-func init() { file_proto_wxproto_video_msg_proto_init() }
-func file_proto_wxproto_video_msg_proto_init() {
-	if File_proto_wxproto_video_msg_proto != nil {
+func init() { file_video_msg_proto_init() }
+func file_video_msg_proto_init() {
+	if File_video_msg_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_wxproto_video_msg_proto_rawDesc), len(file_proto_wxproto_video_msg_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_video_msg_proto_rawDesc), len(file_video_msg_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_proto_wxproto_video_msg_proto_goTypes,
-		DependencyIndexes: file_proto_wxproto_video_msg_proto_depIdxs,
-		MessageInfos:      file_proto_wxproto_video_msg_proto_msgTypes,
+		GoTypes:           file_video_msg_proto_goTypes,
+		DependencyIndexes: file_video_msg_proto_depIdxs,
+		MessageInfos:      file_video_msg_proto_msgTypes,
 	}.Build()
-	File_proto_wxproto_video_msg_proto = out.File
-	file_proto_wxproto_video_msg_proto_goTypes = nil
-	file_proto_wxproto_video_msg_proto_depIdxs = nil
+	File_video_msg_proto = out.File
+	file_video_msg_proto_goTypes = nil
+	file_video_msg_proto_depIdxs = nil
 }

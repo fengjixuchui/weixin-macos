@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v3.5.1
-// source: proto/wxproto/img_msg.proto
+// source: img_msg.proto
 
 package wxproto
 
@@ -64,7 +64,7 @@ type WxSendImgMsg struct {
 
 func (x *WxSendImgMsg) Reset() {
 	*x = WxSendImgMsg{}
-	mi := &file_proto_wxproto_img_msg_proto_msgTypes[0]
+	mi := &file_img_msg_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -76,7 +76,7 @@ func (x *WxSendImgMsg) String() string {
 func (*WxSendImgMsg) ProtoMessage() {}
 
 func (x *WxSendImgMsg) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_wxproto_img_msg_proto_msgTypes[0]
+	mi := &file_img_msg_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -89,7 +89,7 @@ func (x *WxSendImgMsg) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WxSendImgMsg.ProtoReflect.Descriptor instead.
 func (*WxSendImgMsg) Descriptor() ([]byte, []int) {
-	return file_proto_wxproto_img_msg_proto_rawDescGZIP(), []int{0}
+	return file_img_msg_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *WxSendImgMsg) GetHeader() *ImgMsgHeader {
@@ -298,18 +298,18 @@ func (x *WxSendImgMsg) GetUnknown41() int32 {
 type ImgMsgHeader struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Flag          []byte                 `protobuf:"bytes,1,opt,name=flag,proto3" json:"flag,omitempty"`
-	MsgId         int64                  `protobuf:"varint,2,opt,name=msg_id,json=msgId,proto3" json:"msg_id,omitempty"`
+	SessionId     int64                  `protobuf:"varint,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	ClientProof   []byte                 `protobuf:"bytes,3,opt,name=client_proof,json=clientProof,proto3" json:"client_proof,omitempty"`
-	Unknown4      int64                  `protobuf:"varint,4,opt,name=unknown4,proto3" json:"unknown4,omitempty"`
-	SysInfo       []byte                 `protobuf:"bytes,5,opt,name=sys_info,json=sysInfo,proto3" json:"sys_info,omitempty"`
-	Unknown6      int32                  `protobuf:"varint,6,opt,name=unknown6,proto3" json:"unknown6,omitempty"`
+	DeviceId      int64                  `protobuf:"varint,4,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
+	Platform      []byte                 `protobuf:"bytes,5,opt,name=platform,proto3" json:"platform,omitempty"`
+	Version       int32                  `protobuf:"varint,6,opt,name=version,proto3" json:"version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ImgMsgHeader) Reset() {
 	*x = ImgMsgHeader{}
-	mi := &file_proto_wxproto_img_msg_proto_msgTypes[1]
+	mi := &file_img_msg_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -321,7 +321,7 @@ func (x *ImgMsgHeader) String() string {
 func (*ImgMsgHeader) ProtoMessage() {}
 
 func (x *ImgMsgHeader) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_wxproto_img_msg_proto_msgTypes[1]
+	mi := &file_img_msg_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -334,7 +334,7 @@ func (x *ImgMsgHeader) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImgMsgHeader.ProtoReflect.Descriptor instead.
 func (*ImgMsgHeader) Descriptor() ([]byte, []int) {
-	return file_proto_wxproto_img_msg_proto_rawDescGZIP(), []int{1}
+	return file_img_msg_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *ImgMsgHeader) GetFlag() []byte {
@@ -344,9 +344,9 @@ func (x *ImgMsgHeader) GetFlag() []byte {
 	return nil
 }
 
-func (x *ImgMsgHeader) GetMsgId() int64 {
+func (x *ImgMsgHeader) GetSessionId() int64 {
 	if x != nil {
-		return x.MsgId
+		return x.SessionId
 	}
 	return 0
 }
@@ -358,23 +358,23 @@ func (x *ImgMsgHeader) GetClientProof() []byte {
 	return nil
 }
 
-func (x *ImgMsgHeader) GetUnknown4() int64 {
+func (x *ImgMsgHeader) GetDeviceId() int64 {
 	if x != nil {
-		return x.Unknown4
+		return x.DeviceId
 	}
 	return 0
 }
 
-func (x *ImgMsgHeader) GetSysInfo() []byte {
+func (x *ImgMsgHeader) GetPlatform() []byte {
 	if x != nil {
-		return x.SysInfo
+		return x.Platform
 	}
 	return nil
 }
 
-func (x *ImgMsgHeader) GetUnknown6() int32 {
+func (x *ImgMsgHeader) GetVersion() int32 {
 	if x != nil {
-		return x.Unknown6
+		return x.Version
 	}
 	return 0
 }
@@ -389,7 +389,7 @@ type ImgMsgExtra struct {
 
 func (x *ImgMsgExtra) Reset() {
 	*x = ImgMsgExtra{}
-	mi := &file_proto_wxproto_img_msg_proto_msgTypes[2]
+	mi := &file_img_msg_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -401,7 +401,7 @@ func (x *ImgMsgExtra) String() string {
 func (*ImgMsgExtra) ProtoMessage() {}
 
 func (x *ImgMsgExtra) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_wxproto_img_msg_proto_msgTypes[2]
+	mi := &file_img_msg_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -414,7 +414,7 @@ func (x *ImgMsgExtra) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImgMsgExtra.ProtoReflect.Descriptor instead.
 func (*ImgMsgExtra) Descriptor() ([]byte, []int) {
-	return file_proto_wxproto_img_msg_proto_rawDescGZIP(), []int{2}
+	return file_img_msg_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ImgMsgExtra) GetField1() int32 {
@@ -431,11 +431,11 @@ func (x *ImgMsgExtra) GetField2() []byte {
 	return nil
 }
 
-var File_proto_wxproto_img_msg_proto protoreflect.FileDescriptor
+var File_img_msg_proto protoreflect.FileDescriptor
 
-const file_proto_wxproto_img_msg_proto_rawDesc = "" +
+const file_img_msg_proto_rawDesc = "" +
 	"\n" +
-	"\x1bproto/wxproto/img_msg.proto\x12\awxproto\x1a\x1aproto/wxproto/wx_msg.proto\"\xa3\a\n" +
+	"\rimg_msg.proto\x12\awxproto\x1a\fwx_msg.proto\"\xa3\a\n" +
 	"\fWxSendImgMsg\x12-\n" +
 	"\x06header\x18\x01 \x01(\v2\x15.wxproto.ImgMsgHeaderR\x06header\x125\n" +
 	"\rclient_msg_id\x18\x02 \x01(\v2\x11.wxproto.WxStringR\vclientMsgId\x12)\n" +
@@ -466,38 +466,39 @@ const file_proto_wxproto_img_msg_proto_rawDesc = "" +
 	"\tunknown28\x18\x1c \x01(\x03R\tunknown28\x12\x1c\n" +
 	"\tunknown30\x18\x1e \x01(\x05R\tunknown30\x12\x1c\n" +
 	"\tunknown36\x18$ \x01(\x05R\tunknown36\x12\x1c\n" +
-	"\tunknown41\x18) \x01(\x05R\tunknown41\"\xaf\x01\n" +
+	"\tunknown41\x18) \x01(\x05R\tunknown41\"\xb7\x01\n" +
 	"\fImgMsgHeader\x12\x12\n" +
-	"\x04flag\x18\x01 \x01(\fR\x04flag\x12\x15\n" +
-	"\x06msg_id\x18\x02 \x01(\x03R\x05msgId\x12!\n" +
-	"\fclient_proof\x18\x03 \x01(\fR\vclientProof\x12\x1a\n" +
-	"\bunknown4\x18\x04 \x01(\x03R\bunknown4\x12\x19\n" +
-	"\bsys_info\x18\x05 \x01(\fR\asysInfo\x12\x1a\n" +
-	"\bunknown6\x18\x06 \x01(\x05R\bunknown6\"=\n" +
+	"\x04flag\x18\x01 \x01(\fR\x04flag\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x02 \x01(\x03R\tsessionId\x12!\n" +
+	"\fclient_proof\x18\x03 \x01(\fR\vclientProof\x12\x1b\n" +
+	"\tdevice_id\x18\x04 \x01(\x03R\bdeviceId\x12\x1a\n" +
+	"\bplatform\x18\x05 \x01(\fR\bplatform\x12\x18\n" +
+	"\aversion\x18\x06 \x01(\x05R\aversion\"=\n" +
 	"\vImgMsgExtra\x12\x16\n" +
 	"\x06field1\x18\x01 \x01(\x05R\x06field1\x12\x16\n" +
-	"\x06field2\x18\x02 \x01(\fR\x06field2B>Z<github.com/yincongcyincong/weixin-macos/onebot/proto/wxprotob\x06proto3"
+	"\x06field2\x18\x02 \x01(\fR\x06field2B>Z<github.com/yincongcyincong/weixin-macos/onebot/proto;wxprotob\x06proto3"
 
 var (
-	file_proto_wxproto_img_msg_proto_rawDescOnce sync.Once
-	file_proto_wxproto_img_msg_proto_rawDescData []byte
+	file_img_msg_proto_rawDescOnce sync.Once
+	file_img_msg_proto_rawDescData []byte
 )
 
-func file_proto_wxproto_img_msg_proto_rawDescGZIP() []byte {
-	file_proto_wxproto_img_msg_proto_rawDescOnce.Do(func() {
-		file_proto_wxproto_img_msg_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_proto_wxproto_img_msg_proto_rawDesc), len(file_proto_wxproto_img_msg_proto_rawDesc)))
+func file_img_msg_proto_rawDescGZIP() []byte {
+	file_img_msg_proto_rawDescOnce.Do(func() {
+		file_img_msg_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_img_msg_proto_rawDesc), len(file_img_msg_proto_rawDesc)))
 	})
-	return file_proto_wxproto_img_msg_proto_rawDescData
+	return file_img_msg_proto_rawDescData
 }
 
-var file_proto_wxproto_img_msg_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
-var file_proto_wxproto_img_msg_proto_goTypes = []any{
+var file_img_msg_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_img_msg_proto_goTypes = []any{
 	(*WxSendImgMsg)(nil), // 0: wxproto.WxSendImgMsg
 	(*ImgMsgHeader)(nil), // 1: wxproto.ImgMsgHeader
 	(*ImgMsgExtra)(nil),  // 2: wxproto.ImgMsgExtra
 	(*WxString)(nil),     // 3: wxproto.WxString
 }
-var file_proto_wxproto_img_msg_proto_depIdxs = []int32{
+var file_img_msg_proto_depIdxs = []int32{
 	1, // 0: wxproto.WxSendImgMsg.header:type_name -> wxproto.ImgMsgHeader
 	3, // 1: wxproto.WxSendImgMsg.client_msg_id:type_name -> wxproto.WxString
 	3, // 2: wxproto.WxSendImgMsg.sender:type_name -> wxproto.WxString
@@ -510,27 +511,27 @@ var file_proto_wxproto_img_msg_proto_depIdxs = []int32{
 	0, // [0:5] is the sub-list for field type_name
 }
 
-func init() { file_proto_wxproto_img_msg_proto_init() }
-func file_proto_wxproto_img_msg_proto_init() {
-	if File_proto_wxproto_img_msg_proto != nil {
+func init() { file_img_msg_proto_init() }
+func file_img_msg_proto_init() {
+	if File_img_msg_proto != nil {
 		return
 	}
-	file_proto_wxproto_wx_msg_proto_init()
+	file_wx_msg_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_wxproto_img_msg_proto_rawDesc), len(file_proto_wxproto_img_msg_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_img_msg_proto_rawDesc), len(file_img_msg_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_proto_wxproto_img_msg_proto_goTypes,
-		DependencyIndexes: file_proto_wxproto_img_msg_proto_depIdxs,
-		MessageInfos:      file_proto_wxproto_img_msg_proto_msgTypes,
+		GoTypes:           file_img_msg_proto_goTypes,
+		DependencyIndexes: file_img_msg_proto_depIdxs,
+		MessageInfos:      file_img_msg_proto_msgTypes,
 	}.Build()
-	File_proto_wxproto_img_msg_proto = out.File
-	file_proto_wxproto_img_msg_proto_goTypes = nil
-	file_proto_wxproto_img_msg_proto_depIdxs = nil
+	File_img_msg_proto = out.File
+	file_img_msg_proto_goTypes = nil
+	file_img_msg_proto_depIdxs = nil
 }

@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/xml"
+	"fmt"
+	"math/rand"
 	"sync"
-	
+
 	"github.com/frida/frida-go/frida"
 )
 
@@ -14,15 +16,21 @@ var (
 	device      frida.DeviceInt
 	taskId      = int64(0x20000000)
 	myWechatId  = ""
-	
-	msgChan    = make(chan *SendMsg, 100)
-	finishChan = make(chan struct{}, 100)
-	
+
+	// 全局共享的header字段，启动时初始化一次，两个protobuf共用
+	globalSessionId   = uint32(rand.Int63n(4000000000) + 100000000)
+	globalDeviceId    = rand.Uint64() | (0xFFFFFFFF << 32)
+	globalClientProof = []byte(fmt.Sprintf("m64%s", generateClientProof(13)))
+
+	msgChan          = make(chan *SendMsg, 100)
+	pendingResultMap sync.Map // targetId -> chan error
+
 	config = &Config{}
-	
-	userID2NicknameMap sync.Map
-	userID2FileMsgMap  sync.Map
-	videoInfoMap       sync.Map // targetId -> *VideoInfo
+
+	userID2NicknameMap  sync.Map
+	userID2FileMsgMap   sync.Map
+	videoInfoMap        sync.Map // targetId -> *VideoInfo
+	buf2RespChan        = make(chan *Buf2RespData, 10)
 )
 
 type WechatMessage struct {
@@ -58,9 +66,10 @@ type SendMsg struct {
 	FilePath   string
 	FileType   int
 
-	CdnKey    string
-	Md5Key    string
-	VideoId   string
+	CdnKey  string
+	Md5Key  string
+	VideoId string
+
 	Duration  int32
 	VideoSize int32
 
@@ -71,11 +80,19 @@ type SendMsg struct {
 	ReferMsgsource   string
 	ReferDisplayName string
 	ReferContent     string
+
+	ResultChan chan error // 发送结果回传
 }
 
 type VideoInfo struct {
 	Duration  int32
 	VideoSize int32
+}
+
+type Buf2RespData struct {
+	MsgType string
+	Data    []byte
+	Err     error
 }
 
 // SendRequest 请求结构体
@@ -91,13 +108,13 @@ type Message struct {
 }
 
 type SendRequestData struct {
-	Id           string          `json:"id,omitempty"`
-	Text         string          `json:"text,omitempty"`
-	File         string          `json:"file,omitempty"`
-	URL          string          `json:"url,omitempty"`
-	QQ           string          `json:"qq,omitempty"`
-	Media        []byte          `json:"media,omitempty"`
-	ReplyMessage *WechatMessage  `json:"reply_message,omitempty"`
+	Id           string         `json:"id,omitempty"`
+	Text         string         `json:"text,omitempty"`
+	File         string         `json:"file,omitempty"`
+	URL          string         `json:"url,omitempty"`
+	QQ           string         `json:"qq,omitempty"`
+	Media        []byte         `json:"media,omitempty"`
+	ReplyMessage *WechatMessage `json:"reply_message,omitempty"`
 }
 
 type Config struct {
@@ -163,7 +180,7 @@ type Image struct {
 	HDHeight    int    `xml:"cdnhdheight,attr"`
 	HDWidth     int    `xml:"cdnhdwidth,attr"`
 	MidImgURL   string `xml:"cdnmidimgurl,attr"`
-	
+
 	// 子节点
 	SecHashInfo string `xml:"secHashInfoBase64"`
 	Live        Live   `xml:"live"`

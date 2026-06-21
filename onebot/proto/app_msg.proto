@@ -2,7 +2,7 @@ syntax = "proto2";
 
 package wxproto;
 
-option go_package = "github.com/yincongcyincong/weixin-macos/onebot/proto/wxproto";
+option go_package = "github.com/yincongcyincong/weixin-macos/onebot/proto;wxproto";
 
 // 发送回复(引用)消息的protobuf结构
 // CG路径: /cgi-bin/micromsg-bin/sendappmsg
@@ -10,16 +10,20 @@ option go_package = "github.com/yincongcyincong/weixin-macos/onebot/proto/wxprot
 message WxSendReplyMsg {
   optional ReplyMsgHeader header = 1;
   optional ReplyMsgBody body = 2;
+  optional bytes unknown5 = 5;         // md5
+  optional int32 unknown9 = 9;         // 1
+  optional uint64 unknown10 = 10;      // msgSvrId
+  optional int32 unknown11 = 11;       // 2
 }
 
-// Header: 固定64字节
+// Header: 请求头，所有消息共用
 message ReplyMsgHeader {
   optional bytes flag = 1;              // 固定 [0x00]
-  optional uint32 timestamp = 2;       // 请求时间戳(秒)
-  optional bytes client_proof = 3;     // 16字节随机数据/md5
-  optional uint64 device_id = 4;       // 设备标识(大整数)
+  optional uint32 session_id = 2;      // 会话ID (启动时生成，全局复用)
+  optional bytes client_proof = 3;     // 16字节设备标识字符串 (如"m64a7624402b3883")
+  optional uint64 device_id = 4;       // 设备ID (大整数，启动时生成，全局复用)
   optional string platform = 5;        // 平台信息 "UnifiedPCMac 26 arm64"
-  optional uint32 version = 6;         // 版本/标记 = 163
+  optional uint32 version = 6;         // 版本标记
 }
 
 // Body: 消息体

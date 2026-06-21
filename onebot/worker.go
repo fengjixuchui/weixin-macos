@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"os"
 	"runtime/debug"
 	"sync/atomic"
@@ -19,11 +20,9 @@ func SendWorker() {
 			go SendWorker()
 		}
 	}()
-	
+
 	for {
 		select {
-		case <-finishChan:
-			Info("收到完成信号")
 		case m, ok := <-msgChan:
 			if !ok {
 				Fatal("发送通道关闭")
@@ -35,28 +34,37 @@ func SendWorker() {
 }
 
 func SendWechatMsg(m *SendMsg) {
+	var sendErr error
+	defer func() {
+		if m.ResultChan != nil {
+			m.ResultChan <- sendErr
+		}
+	}()
+
 	time.Sleep(time.Duration(config.SendInterval) * time.Millisecond)
 	currTaskId := atomic.AddInt64(&taskId, 1)
 	Info("📩 收到任务", "task_id", currTaskId, "type", m.Type)
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	
+
 	targetId := m.UserId
 	if m.GroupID != "" {
 		targetId = m.GroupID
 	}
-	
+
 	if targetId == "" {
 		Error("目标为空", "task_id", currTaskId, "target_id", targetId)
+		sendErr = errors.New("target is empty")
 		return
 	}
-	
+
 	switch m.Type {
 	case "text":
 		protoHex, err := BuildTextMsgProto(targetId, m.Content, m.AtUser)
 		if err != nil {
 			Error("构建文本protobuf失败", "err", err)
+			sendErr = err
 			return
 		}
 		payloadHex := BuildSendPayload(currTaskId, "text")
@@ -64,39 +72,50 @@ func SendWechatMsg(m *SendMsg) {
 		Info("📩 发送文本任务执行结果", "result", result, "task_id", currTaskId, "target_id", targetId, "at_user", m.AtUser)
 		if result != "1" {
 			Error("发送文本失败", "task_id", currTaskId, "target_id", targetId, "result", result)
+			sendErr = errors.New("send text failed")
 			return
 		}
 	case "image":
 		targetPath, md5Str, err := SaveBase64Image(m.Content)
 		if err != nil {
 			Error("保存图片失败", "err", err)
+			sendErr = err
 			return
 		}
-		
+
 		uploadPayloadHex := BuildUploadPayload("img")
 		result := fridaScript.ExportsCall("triggerUploadImg", targetId, md5Str, targetPath, uploadPayloadHex)
 		Info("📩 上传图片任务执行结果", "result", result, "target_id", targetId, "md5", md5Str, "path", targetPath)
 		if result != "0" {
 			Error("上传图片失败", "target_id", targetId, "md5", md5Str, "result", result)
+			sendErr = errors.New("upload image failed")
 			return
 		}
+		if m.ResultChan != nil {
+			pendingResultMap.Store(targetId, m.ResultChan)
+			m.ResultChan = nil // 不让 defer 发送结果
+		}
+		return
 	case "send_image":
 		protoHex, err := BuildImgMsgProto(myWechatId, targetId, m.CdnKey, m.AesKey, m.Md5Key)
 		if err != nil {
 			Error("构建图片protobuf失败", "err", err)
+			sendErr = err
 			return
 		}
 		payloadHex := BuildSendPayload(currTaskId, "img")
 		result := fridaScript.ExportsCall("triggerSendImgMessage", currTaskId, myWechatId, targetId, protoHex, payloadHex)
 		Info("📩 发送图片任务执行结果", "result", result, "task_id", currTaskId, "wechat_id", myWechatId, "target_id", targetId)
 		if result != "1" {
-			Error("上传图片失败", "task_id", currTaskId, "target_id", targetId, "result", result)
+			Error("发送图片失败", "task_id", currTaskId, "target_id", targetId, "result", result)
+			sendErr = errors.New("send image failed")
 			return
 		}
 	case "video":
 		targetPath, md5Str, err := SaveBase64Image(m.Content)
 		if err != nil {
 			Error("保存图片失败", "err", err)
+			sendErr = err
 			return
 		}
 
@@ -118,8 +137,14 @@ func SendWechatMsg(m *SendMsg) {
 		Info("📩 上传视频任务执行结果", "result", result, "target_id", targetId, "md5", md5Str, "path", targetPath, "duration", info.Duration, "size", info.VideoSize)
 		if result != "0" {
 			Error("上传视频失败", "target_id", targetId, "md5", md5Str, "result", result)
+			sendErr = errors.New("upload video failed")
 			return
 		}
+		if m.ResultChan != nil {
+			pendingResultMap.Store(targetId, m.ResultChan)
+			m.ResultChan = nil
+		}
+		return
 	case "send_video":
 		var duration, videoSize int32
 		if info, ok := videoInfoMap.LoadAndDelete(targetId); ok {
@@ -130,6 +155,7 @@ func SendWechatMsg(m *SendMsg) {
 		protoHex, err := BuildVideoMsgProto(myWechatId, targetId, m.CdnKey, m.AesKey, m.Md5Key, m.VideoId, duration, videoSize)
 		if err != nil {
 			Error("构建视频protobuf失败", "err", err)
+			sendErr = err
 			return
 		}
 		payloadHex := BuildSendPayload(currTaskId, "video")
@@ -137,6 +163,7 @@ func SendWechatMsg(m *SendMsg) {
 		Info("📩 发送视频任务执行结果", "result", result, "task_id", currTaskId, "wechat_id", myWechatId, "target_id", targetId, "duration", duration, "size", videoSize)
 		if result != "1" {
 			Error("发送视频失败", "task_id", currTaskId, "target_id", targetId, "result", result)
+			sendErr = errors.New("send video failed")
 			return
 		}
 	case "download":
@@ -156,6 +183,7 @@ func SendWechatMsg(m *SendMsg) {
 		protoHex, err := BuildReplyMsgProto(myWechatId, targetId, replyInfo)
 		if err != nil {
 			Error("构建回复protobuf失败", "err", err)
+			sendErr = err
 			return
 		}
 		payloadHex := BuildSendPayload(currTaskId, "reply")
@@ -163,15 +191,22 @@ func SendWechatMsg(m *SendMsg) {
 		Info("📩 发送回复任务执行结果", "result", result, "task_id", currTaskId, "wechat_id", myWechatId, "target_id", targetId)
 		if result != "1" {
 			Error("发送回复失败", "task_id", currTaskId, "target_id", targetId, "result", result)
+			sendErr = errors.New("send reply failed")
 			return
 		}
 	}
-	
+
 	select {
 	case <-ctx.Done():
 		Error("任务执行超时！", "taskId", currTaskId)
-	case <-finishChan:
-		Info("收到完成信号，任务完成", "taskId", currTaskId)
+		sendErr = errors.New("send timeout")
+	case resp := <-buf2RespChan:
+		if resp.Err != nil {
+			Error("收到buf2resp失败信号", "taskId", currTaskId, "msg_type", resp.MsgType, "err", resp.Err)
+			sendErr = resp.Err
+			return
+		}
+		Info("收到buf2resp完成信号，任务完成", "taskId", currTaskId, "msg_type", resp.MsgType, "data_len", len(resp.Data))
 	}
 }
 
@@ -182,11 +217,14 @@ func HandleMsg(jsonData []byte) ([]byte, error) {
 		Error("解析消息失败", "err", err)
 		return nil, err
 	}
-	myWechatId = m.SelfID
+
+	if myWechatId == "" && m.SelfID != "" {
+		myWechatId = m.SelfID
+	}
 	if m.GroupId != "" {
 		userID2NicknameMap.Store(m.GroupId+"_"+m.UserID, m.Sender.Nickname)
 	}
-	
+
 	for _, msg := range m.Message {
 		switch msg.Type {
 		case "record":
@@ -204,15 +242,15 @@ func HandleMsg(jsonData []byte) ([]byte, error) {
 				Error("XML解析失败", "err", err)
 				return nil, err
 			}
-			
+
 			path, err := GetDownloadPath(fileMsg.Image.MidImgURL, fileMsg.Image.AesKey)
 			if err != nil {
 				Error("获取文件路径失败", "err", err)
 				return nil, err
 			}
-			
+
 			msg.Data.URL = "file://" + path
-		
+
 		case "file":
 			var fileMsg FileMsg
 			err = xml.Unmarshal([]byte(msg.Data.Text), &fileMsg)
@@ -225,7 +263,7 @@ func HandleMsg(jsonData []byte) ([]byte, error) {
 				Error("获取文件路径失败", "err", err)
 				return nil, err
 			}
-			
+
 			msg.Data.URL = "file://" + path
 		case "video":
 			var fileMsg FileMsg
@@ -239,7 +277,7 @@ func HandleMsg(jsonData []byte) ([]byte, error) {
 				Error("获取文件路径失败", "err", err)
 				return nil, err
 			}
-			
+
 			msg.Data.URL = "file://" + path
 		case "face":
 			var fileMsg FileMsg
@@ -249,8 +287,11 @@ func HandleMsg(jsonData []byte) ([]byte, error) {
 				return nil, err
 			}
 
-			// 优先thumburl，为空则用externurl
-			emojiUrl := fileMsg.Emoji.ThumbUrl
+			// 优先cdnurl，为空则用thumburl，再为空则用externurl
+			emojiUrl := fileMsg.Emoji.CdnUrl
+			if emojiUrl == "" {
+				emojiUrl = fileMsg.Emoji.ThumbUrl
+			}
 			if emojiUrl == "" {
 				emojiUrl = fileMsg.Emoji.ExternUrl
 			}
@@ -260,13 +301,13 @@ func HandleMsg(jsonData []byte) ([]byte, error) {
 				Error("下载表情失败", "err", err)
 				return nil, err
 			}
-			
+
 			path, err := DetectAndSaveImage(data)
 			if err != nil {
 				Error("保存表情失败", "err", err)
 				return nil, err
 			}
-			
+
 			msg.Data.URL = "file://" + path
 		}
 	}
@@ -280,17 +321,17 @@ func GetDownloadPath(cdnUrl, aesKeyStr string) (string, error) {
 			if downloadReq.FilePath != "" {
 				return downloadReq.FilePath, nil
 			}
-			
+
 			// 检查数据是否还在接收中
 			timeSinceLastAppend := time.Now().UnixMilli() - downloadReq.LastAppendTime
 			Info("文件等待下载", "url", cdnUrl, "times", i, "last_append_time", timeSinceLastAppend)
-			
+
 			// 如果数据仍在接收中（1秒内有新数据），继续等待
 			if timeSinceLastAppend < 1000 && i < 9 {
 				time.Sleep(2 * time.Second)
 				continue
 			}
-			
+
 			// 数据接收完成，尝试解密
 			if len(downloadReq.Media) > 0 {
 				aesKey, err := hex.DecodeString(aesKeyStr)
@@ -304,15 +345,52 @@ func GetDownloadPath(cdnUrl, aesKeyStr string) (string, error) {
 					userID2FileMsgMap.Delete(cdnUrl)
 					return "", err
 				}
-				
+
 				downloadReq.FilePath = filePath
 				downloadReq.Media = nil
 				return filePath, nil
 			}
 		}
-		
+
 		time.Sleep(2 * time.Second)
 	}
-	
+
 	return "", errors.New("文件下载超时或数据为空")
+}
+
+// HandleBuf2Resp 处理所有消息类型的buf2resp响应
+func HandleBuf2Resp(msgType string, data []byte) {
+	Info("收到buf2resp响应", "msg_type", msgType, "data_len", len(data))
+
+	if len(data) == 0 {
+		Error("buf2resp响应数据为空", "msg_type", msgType)
+		buf2RespChan <- &Buf2RespData{
+			MsgType: msgType,
+			Data:    data,
+			Err:     errors.New("response data is empty"),
+		}
+		return
+	}
+
+	ret, errMsg, err := ParseSendMsgResponse(data)
+	if err != nil {
+		Info("buf2resp响应无法提取错误码，视为成功", "msg_type", msgType, "err", err)
+	}
+
+	// 判断错误码是否为0
+	if ret != 0 {
+		Error("buf2resp响应错误", "msg_type", msgType, "ret", ret, "errMsg", errMsg)
+		buf2RespChan <- &Buf2RespData{
+			MsgType: msgType,
+			Data:    data,
+			Err:     fmt.Errorf("response error, ret=%d, errMsg=%s", ret, errMsg),
+		}
+		return
+	}
+
+	Info("buf2resp响应成功", "msg_type", msgType)
+	buf2RespChan <- &Buf2RespData{
+		MsgType: msgType,
+		Data:    data,
+	}
 }

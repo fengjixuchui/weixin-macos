@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package wxproto;
 
-option go_package = "github.com/yincongcyincong/weixin-macos/onebot/proto/wxproto";
+option go_package = "github.com/yincongcyincong/weixin-macos/onebot/proto;wxproto";
 
 // 最外层消息
 message WxRecvMsg {

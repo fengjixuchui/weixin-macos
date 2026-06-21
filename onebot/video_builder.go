@@ -1,34 +1,17 @@
 package main
 
 import (
-	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	mathrand "math/rand"
 	"strconv"
 	"time"
 
-	"github.com/yincongcyincong/weixin-macos/onebot/proto/wxproto"
+	wxproto "github.com/yincongcyincong/weixin-macos/onebot/proto"
 	"google.golang.org/protobuf/proto"
 )
 
 // BuildVideoMsgProto 构建发送视频消息的protobuf并返回hex编码的字符串
 func BuildVideoMsgProto(sender, targetId, cdnKey, aesKey, md5Key, videoId string, duration int32, videoSize int32) (string, error) {
-	// 生成16字节随机client_proof
-	clientProof := make([]byte, 16)
-	const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-	randBytes := make([]byte, 16)
-	rand.Read(randBytes)
-	for i := range clientProof {
-		clientProof[i] = chars[int(randBytes[i])%len(chars)]
-	}
-
-	// 生成5字节varint范围的msgId (2^28 ~ 2^35-1)
-	msgId := mathrand.Int63n(1<<35-1<<28) + (1 << 28)
-
-	// header.unknown4: 同图片proto
-	const headerUnknown4 int64 = -228321745
-
 	// client_msg_id: targetId_timestamp_160_xwechat_1
 	timestamp := time.Now().Unix()
 	clientMsgId := targetId + "_" + strconv.FormatInt(timestamp, 10) + "_160_xwechat_1"
@@ -39,11 +22,11 @@ func BuildVideoMsgProto(sender, targetId, cdnKey, aesKey, md5Key, videoId string
 	msg := &wxproto.WxSendVideoMsg{
 		Header: &wxproto.VideoMsgHeader{
 			Flag:        []byte{0x00},
-			MsgId:       msgId,
-			ClientProof: clientProof,
-			Unknown4:    headerUnknown4,
-			SysInfo:     []byte("UnifiedPCMac 26 arm64"),
-			Unknown6:    118,
+			SessionId:   int64(globalSessionId),
+			ClientProof: globalClientProof,
+			DeviceId:    int64(globalDeviceId),
+			Platform:    []byte("UnifiedPCMac 26 arm64"),
+			Version:     118,
 		},
 		ClientMsgId: []byte(clientMsgId),
 		Sender:      []byte(sender),
@@ -76,7 +59,7 @@ func BuildVideoMsgProto(sender, targetId, cdnKey, aesKey, md5Key, videoId string
 		Md5Key:    []byte(md5Key),
 		VideoId:   []byte(videoId),
 		// Unknown38: 0, // 需要手动追加
-		Md5Key2:   []byte(md5Key),
+		Md5Key2:    []byte(md5Key),
 		CdnKey3:    []byte(cdnKey),
 		AesKey3:    []byte(aesKey),
 		VideoSize3: videoSize,

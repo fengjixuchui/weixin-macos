@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package wxproto;
 
-option go_package = "github.com/yincongcyincong/weixin-macos/onebot/proto/wxproto";
+option go_package = "github.com/yincongcyincong/weixin-macos/onebot/proto;wxproto";
 
 // 发送视频消息的protobuf结构
 message WxSendVideoMsg {
@@ -43,11 +43,11 @@ message WxSendVideoMsg {
 
 message VideoMsgHeader {
   bytes flag = 1;
-  int64 msg_id = 2;
+  int64 session_id = 2;
   bytes client_proof = 3;
-  int64 unknown4 = 4;
-  bytes sys_info = 5;
-  int32 unknown6 = 6;
+  int64 device_id = 4;
+  bytes platform = 5;
+  int32 version = 6;
 }
 
 message VideoMsgExtra {

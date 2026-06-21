@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yincongcyincong/weixin-macos/onebot/proto/wxproto"
+	wxproto "github.com/yincongcyincong/weixin-macos/onebot/proto"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -82,11 +82,17 @@ func HandleProtobufMsg(payload map[string]interface{}) ([]byte, error) {
 	}
 
 	selfId := receiver
+	if strings.Contains(receiver, "@chatroom") {
+		selfId = sender
+	}
 	msgType := "private"
 	groupId := ""
 	senderUser := sender
 	senderNickname := ""
 	messages := getMessagesFromProto(content, sender, data.MediaContent)
+	if len(messages) == 0 {
+		return nil, fmt.Errorf("protobuf_msg: no messages found")
+	}
 
 	if strings.Contains(sender, "@chatroom") {
 		msgType = "group"
@@ -133,7 +139,6 @@ func HandleProtobufMsg(payload map[string]interface{}) ([]byte, error) {
 		}
 	}
 
-	myWechatId = selfId
 	if groupId != "" {
 		userID2NicknameMap.Store(groupId+"_"+senderUser, senderNickname)
 	}
@@ -230,7 +235,7 @@ func classifyMessage(content string, mediaContent []byte) *Message {
 		return &Message{Type: "face", Data: &SendRequestData{Text: content}}
 	case strings.HasPrefix(content, "<?xml version=\"1.0\"?><msg><videomsg"):
 		return &Message{Type: "video", Data: &SendRequestData{Text: content}}
-	case strings.HasPrefix(content, "<sysmsg") || strings.HasPrefix(content, "<?xml version=\"1.0\"?><sysmsg"):
+	case strings.HasPrefix(content, "<sysmsg") || strings.HasPrefix(content, "<?xml version=\"1.0\"?><sysmsg") || strings.HasPrefix(content, "<msg><op id"):
 		return &Message{Type: "sys", Data: &SendRequestData{Text: content}}
 	default:
 		return &Message{Type: "text", Data: &SendRequestData{Text: content}}

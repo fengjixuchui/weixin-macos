@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v3.5.1
-// source: proto/wxproto/wx_msg.proto
+// source: wx_msg.proto
 
 package wxproto
 
@@ -32,7 +32,7 @@ type WxRecvMsg struct {
 
 func (x *WxRecvMsg) Reset() {
 	*x = WxRecvMsg{}
-	mi := &file_proto_wxproto_wx_msg_proto_msgTypes[0]
+	mi := &file_wx_msg_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44,7 +44,7 @@ func (x *WxRecvMsg) String() string {
 func (*WxRecvMsg) ProtoMessage() {}
 
 func (x *WxRecvMsg) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_wxproto_wx_msg_proto_msgTypes[0]
+	mi := &file_wx_msg_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -57,7 +57,7 @@ func (x *WxRecvMsg) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WxRecvMsg.ProtoReflect.Descriptor instead.
 func (*WxRecvMsg) Descriptor() ([]byte, []int) {
-	return file_proto_wxproto_wx_msg_proto_rawDescGZIP(), []int{0}
+	return file_wx_msg_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *WxRecvMsg) GetRecvType() int32 {
@@ -85,7 +85,7 @@ type WxRecvMsgWrapper struct {
 
 func (x *WxRecvMsgWrapper) Reset() {
 	*x = WxRecvMsgWrapper{}
-	mi := &file_proto_wxproto_wx_msg_proto_msgTypes[1]
+	mi := &file_wx_msg_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -97,7 +97,7 @@ func (x *WxRecvMsgWrapper) String() string {
 func (*WxRecvMsgWrapper) ProtoMessage() {}
 
 func (x *WxRecvMsgWrapper) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_wxproto_wx_msg_proto_msgTypes[1]
+	mi := &file_wx_msg_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -110,7 +110,7 @@ func (x *WxRecvMsgWrapper) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WxRecvMsgWrapper.ProtoReflect.Descriptor instead.
 func (*WxRecvMsgWrapper) Descriptor() ([]byte, []int) {
-	return file_proto_wxproto_wx_msg_proto_rawDescGZIP(), []int{1}
+	return file_wx_msg_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *WxRecvMsgWrapper) GetMsgType() int32 {
@@ -138,7 +138,7 @@ type WxRecvMsgBody struct {
 
 func (x *WxRecvMsgBody) Reset() {
 	*x = WxRecvMsgBody{}
-	mi := &file_proto_wxproto_wx_msg_proto_msgTypes[2]
+	mi := &file_wx_msg_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -150,7 +150,7 @@ func (x *WxRecvMsgBody) String() string {
 func (*WxRecvMsgBody) ProtoMessage() {}
 
 func (x *WxRecvMsgBody) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_wxproto_wx_msg_proto_msgTypes[2]
+	mi := &file_wx_msg_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -163,7 +163,7 @@ func (x *WxRecvMsgBody) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WxRecvMsgBody.ProtoReflect.Descriptor instead.
 func (*WxRecvMsgBody) Descriptor() ([]byte, []int) {
-	return file_proto_wxproto_wx_msg_proto_rawDescGZIP(), []int{2}
+	return file_wx_msg_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *WxRecvMsgBody) GetMsgType() int32 {
@@ -191,7 +191,7 @@ type WxRecvMsgContent struct {
 
 func (x *WxRecvMsgContent) Reset() {
 	*x = WxRecvMsgContent{}
-	mi := &file_proto_wxproto_wx_msg_proto_msgTypes[3]
+	mi := &file_wx_msg_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -203,7 +203,7 @@ func (x *WxRecvMsgContent) String() string {
 func (*WxRecvMsgContent) ProtoMessage() {}
 
 func (x *WxRecvMsgContent) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_wxproto_wx_msg_proto_msgTypes[3]
+	mi := &file_wx_msg_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -216,7 +216,7 @@ func (x *WxRecvMsgContent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WxRecvMsgContent.ProtoReflect.Descriptor instead.
 func (*WxRecvMsgContent) Descriptor() ([]byte, []int) {
-	return file_proto_wxproto_wx_msg_proto_rawDescGZIP(), []int{3}
+	return file_wx_msg_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *WxRecvMsgContent) GetDataLen() int32 {
@@ -257,7 +257,7 @@ type WxRecvMsgData struct {
 
 func (x *WxRecvMsgData) Reset() {
 	*x = WxRecvMsgData{}
-	mi := &file_proto_wxproto_wx_msg_proto_msgTypes[4]
+	mi := &file_wx_msg_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -269,7 +269,7 @@ func (x *WxRecvMsgData) String() string {
 func (*WxRecvMsgData) ProtoMessage() {}
 
 func (x *WxRecvMsgData) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_wxproto_wx_msg_proto_msgTypes[4]
+	mi := &file_wx_msg_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -282,7 +282,7 @@ func (x *WxRecvMsgData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WxRecvMsgData.ProtoReflect.Descriptor instead.
 func (*WxRecvMsgData) Descriptor() ([]byte, []int) {
-	return file_proto_wxproto_wx_msg_proto_rawDescGZIP(), []int{4}
+	return file_wx_msg_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *WxRecvMsgData) GetId() int64 {
@@ -400,7 +400,7 @@ type WxString struct {
 
 func (x *WxString) Reset() {
 	*x = WxString{}
-	mi := &file_proto_wxproto_wx_msg_proto_msgTypes[5]
+	mi := &file_wx_msg_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -412,7 +412,7 @@ func (x *WxString) String() string {
 func (*WxString) ProtoMessage() {}
 
 func (x *WxString) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_wxproto_wx_msg_proto_msgTypes[5]
+	mi := &file_wx_msg_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -425,7 +425,7 @@ func (x *WxString) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WxString.ProtoReflect.Descriptor instead.
 func (*WxString) Descriptor() ([]byte, []int) {
-	return file_proto_wxproto_wx_msg_proto_rawDescGZIP(), []int{5}
+	return file_wx_msg_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *WxString) GetValue() string {
@@ -435,11 +435,11 @@ func (x *WxString) GetValue() string {
 	return ""
 }
 
-var File_proto_wxproto_wx_msg_proto protoreflect.FileDescriptor
+var File_wx_msg_proto protoreflect.FileDescriptor
 
-const file_proto_wxproto_wx_msg_proto_rawDesc = "" +
+const file_wx_msg_proto_rawDesc = "" +
 	"\n" +
-	"\x1aproto/wxproto/wx_msg.proto\x12\awxproto\"]\n" +
+	"\fwx_msg.proto\x12\awxproto\"]\n" +
 	"\tWxRecvMsg\x12\x1b\n" +
 	"\trecv_type\x18\x01 \x01(\x05R\brecvType\x123\n" +
 	"\awrapper\x18\x02 \x01(\v2\x19.wxproto.WxRecvMsgWrapperR\awrapper\"Y\n" +
@@ -471,22 +471,22 @@ const file_proto_wxproto_wx_msg_proto_rawDesc = "" +
 	"\textra_xml\x18\x0e \x01(\fR\bextraXml\x12\x1c\n" +
 	"\tunknown15\x18\x0f \x01(\x05R\tunknown15\" \n" +
 	"\bWxString\x12\x14\n" +
-	"\x05value\x18\x01 \x01(\tR\x05valueB>Z<github.com/yincongcyincong/weixin-macos/onebot/proto/wxprotob\x06proto3"
+	"\x05value\x18\x01 \x01(\tR\x05valueB>Z<github.com/yincongcyincong/weixin-macos/onebot/proto;wxprotob\x06proto3"
 
 var (
-	file_proto_wxproto_wx_msg_proto_rawDescOnce sync.Once
-	file_proto_wxproto_wx_msg_proto_rawDescData []byte
+	file_wx_msg_proto_rawDescOnce sync.Once
+	file_wx_msg_proto_rawDescData []byte
 )
 
-func file_proto_wxproto_wx_msg_proto_rawDescGZIP() []byte {
-	file_proto_wxproto_wx_msg_proto_rawDescOnce.Do(func() {
-		file_proto_wxproto_wx_msg_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_proto_wxproto_wx_msg_proto_rawDesc), len(file_proto_wxproto_wx_msg_proto_rawDesc)))
+func file_wx_msg_proto_rawDescGZIP() []byte {
+	file_wx_msg_proto_rawDescOnce.Do(func() {
+		file_wx_msg_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_wx_msg_proto_rawDesc), len(file_wx_msg_proto_rawDesc)))
 	})
-	return file_proto_wxproto_wx_msg_proto_rawDescData
+	return file_wx_msg_proto_rawDescData
 }
 
-var file_proto_wxproto_wx_msg_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
-var file_proto_wxproto_wx_msg_proto_goTypes = []any{
+var file_wx_msg_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_wx_msg_proto_goTypes = []any{
 	(*WxRecvMsg)(nil),        // 0: wxproto.WxRecvMsg
 	(*WxRecvMsgWrapper)(nil), // 1: wxproto.WxRecvMsgWrapper
 	(*WxRecvMsgBody)(nil),    // 2: wxproto.WxRecvMsgBody
@@ -494,7 +494,7 @@ var file_proto_wxproto_wx_msg_proto_goTypes = []any{
 	(*WxRecvMsgData)(nil),    // 4: wxproto.WxRecvMsgData
 	(*WxString)(nil),         // 5: wxproto.WxString
 }
-var file_proto_wxproto_wx_msg_proto_depIdxs = []int32{
+var file_wx_msg_proto_depIdxs = []int32{
 	1, // 0: wxproto.WxRecvMsg.wrapper:type_name -> wxproto.WxRecvMsgWrapper
 	2, // 1: wxproto.WxRecvMsgWrapper.body:type_name -> wxproto.WxRecvMsgBody
 	3, // 2: wxproto.WxRecvMsgBody.content:type_name -> wxproto.WxRecvMsgContent
@@ -509,26 +509,26 @@ var file_proto_wxproto_wx_msg_proto_depIdxs = []int32{
 	0, // [0:7] is the sub-list for field type_name
 }
 
-func init() { file_proto_wxproto_wx_msg_proto_init() }
-func file_proto_wxproto_wx_msg_proto_init() {
-	if File_proto_wxproto_wx_msg_proto != nil {
+func init() { file_wx_msg_proto_init() }
+func file_wx_msg_proto_init() {
+	if File_wx_msg_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_wxproto_wx_msg_proto_rawDesc), len(file_proto_wxproto_wx_msg_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_wx_msg_proto_rawDesc), len(file_wx_msg_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_proto_wxproto_wx_msg_proto_goTypes,
-		DependencyIndexes: file_proto_wxproto_wx_msg_proto_depIdxs,
-		MessageInfos:      file_proto_wxproto_wx_msg_proto_msgTypes,
+		GoTypes:           file_wx_msg_proto_goTypes,
+		DependencyIndexes: file_wx_msg_proto_depIdxs,
+		MessageInfos:      file_wx_msg_proto_msgTypes,
 	}.Build()
-	File_proto_wxproto_wx_msg_proto = out.File
-	file_proto_wxproto_wx_msg_proto_goTypes = nil
-	file_proto_wxproto_wx_msg_proto_depIdxs = nil
+	File_wx_msg_proto = out.File
+	file_wx_msg_proto_goTypes = nil
+	file_wx_msg_proto_depIdxs = nil
 }
