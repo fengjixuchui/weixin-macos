@@ -14,6 +14,10 @@ import (
 func HandleProtobufMsgAndSend(payload map[string]interface{}) {
 	jsonData, err := HandleProtobufMsg(payload)
 	if err != nil {
+		if isUnsupportedProtobufMessage(err) {
+			Warn("跳过不匹配的protobuf消息", "err", err)
+			return
+		}
 		Error("protobuf消息处理失败", "err", err)
 		return
 	}
@@ -27,6 +31,18 @@ func HandleProtobufMsgAndSend(payload map[string]interface{}) {
 	} else {
 		SendWebSocketMsg(jsonData)
 	}
+}
+
+func isUnsupportedProtobufMessage(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	message := err.Error()
+	return strings.Contains(message, "cannot parse invalid wire-format data") ||
+		strings.Contains(message, "cannot extract message data") ||
+		strings.Contains(message, "missing required fields") ||
+		strings.Contains(message, "no messages found")
 }
 
 func HandleProtobufMsg(payload map[string]interface{}) ([]byte, error) {
@@ -52,10 +68,7 @@ func HandleProtobufMsg(payload map[string]interface{}) ([]byte, error) {
 	msg := &wxproto.WxRecvMsg{}
 	err := proto.Unmarshal(rawBytes, msg)
 	if err != nil {
-		if strings.Contains(err.Error(), "cannot parse invalid wire-format data") {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("protobuf unmarshal failed: %w", err)
+		return nil, fmt.Errorf("protobuf unmarshal failed (data_len=%d): %w", len(rawBytes), err)
 	}
 
 	data := getWxMsgData(msg)

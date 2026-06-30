@@ -1047,20 +1047,27 @@ function setReceiver() {
 
 				pendingBuf2RespTaskId = 0;
 				pendingSendMsgType = "";
+            }
+
+            if (x2 < 4) {
+                return;
+            }
+            if (x2 > MAX_FRIDA_MESSAGE_BYTES) {
+                console.warn("[skip] protobuf_msg length out of range: " + x2);
                 return;
             }
 
-            if (x2 < 4 || x2 > MAX_FRIDA_MESSAGE_BYTES) {
-                return;
-            }
-
-            // 2. field 2 wrapper长度 < 128 (单字节varint) → wrapper内容过小,非聊天消息
-            if (currentPtr.add(2).readU8() === 0x10 || currentPtr.add(2).readU8() === 0x16 || (currentPtr.add(3).readU8() & 0x80) === 0) {
-                return;
-            }
             const mem = readByteArrayIfReadable(currentPtr, x2);
-            if (!mem) return;
+            if (!mem) {
+                console.warn("[skip] protobuf_msg memory read failed, length=" + x2);
+                return;
+            }
             const uint8Array = new Uint8Array(mem);
+            // 与已验证稳定的旧版本保持一致，只做最宽松的消息候选判断。
+            // 具体结构交给 Go 解析，宁可产生误判日志，也不要在 JS 层漏掉消息。
+            if (uint8Array[0] !== 0x08) {
+                return;
+            }
 
             send({
                 type: "protobuf_msg",
